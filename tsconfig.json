@@ -2,7 +2,7 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    "rootDir": "./src",
+    "rootDirs": ["./src", "./tests"],
     "outDir": "./dist",
 
     // Environment Settings
@@ -15,7 +15,8 @@
     // "types": ["node"],
     // and npm install -D @types/node
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/tests": ["./tests/*"]
     },
     "esModuleInterop": true,
 
