@@ -19,9 +19,9 @@ describe("runtime scripts", () => {
   });
 
   it("defines start and seed scripts from dist output", () => {
-    expect(packageJson.scripts?.start).toBe("node dist/main.js");
+    expect(packageJson.scripts?.start).toBe("node --env-file=.env dist/main.js");
     expect(packageJson.scripts?.["seed:periodic-table"]).toBe(
-      "node dist/infrastructure/mongoose/seedPeriodicTable.js",
+      "node --env-file=.env dist/infrastructure/mongoose/seedPeriodicTable.js",
     );
   });
 });
