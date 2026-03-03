@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 
-import type ElementRepository from "@/application/protocols/ElementRepository.js";
-import Element from "@/domain/Element.js";
+import type ElementRepository from "../../application/protocols/ElementRepository.js";
+import Element from "../../domain/Element.js";
 
 type PeriodicTableFixture = {
   elements: Array<{ symbol: string }>;

@@ -1,4 +1,4 @@
-import type Element from "@/domain/Element.js";
+import type Element from "../../domain/Element.js";
 import type ElementRepository from "../protocols/ElementRepository.js";
 
 class ListAllElements {
