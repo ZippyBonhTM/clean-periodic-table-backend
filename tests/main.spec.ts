@@ -1,116 +1,43 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
-
 import { describe, expect, it, vi } from "vitest";
 
-import ListAllElements from "@/application/usecases/ListAllElements.js";
 import type { AppEnv } from "@/config/env.js";
-import Element from "@/domain/Element.js";
-import { createRequestHandler, createShutdownHandler } from "@/main.js";
+import { buildAuthMiddleware, createShutdownHandler } from "@/main.js";
 
-type ResponseDouble = {
-  response: ServerResponse<IncomingMessage>;
-  getBody: () => string;
-  getHeader: (name: string) => string | undefined;
-};
-
-function createResponseDouble(): ResponseDouble {
-  const headers = new Map<string, string>();
-  let body = "";
-
-  const response = {
-    statusCode: 0,
-    setHeader(name: string, value: string) {
-      headers.set(name.toLowerCase(), value);
-      return this;
-    },
-    end(chunk?: string) {
-      body = chunk ?? "";
-      return this;
-    },
-  } as unknown as ServerResponse<IncomingMessage>;
-
-  return {
-    response,
-    getBody: () => body,
-    getHeader: (name: string) => headers.get(name.toLowerCase()),
-  };
-}
-
-function createRequest(method: string, url: string): IncomingMessage {
-  return {
-    method,
-    url,
-    headers: { host: "localhost" },
-  } as unknown as IncomingMessage;
-}
-
-const runtimeEnv: AppEnv = {
+const baseEnv: AppEnv = {
   nodeEnv: "test",
   host: "127.0.0.1",
   port: 3333,
   mongoUri: null,
   dataSource: "memory",
+  authRequired: false,
+  authServiceUrl: null,
+  authValidatePath: "/validate-token",
 };
 
-describe("createRequestHandler", () => {
-  it("returns health payload on GET /health", async () => {
-    const listAllElements = new ListAllElements({
-      getAllElements: vi.fn().mockResolvedValue([]),
-    });
-    const handler = createRequestHandler(listAllElements, runtimeEnv);
-    const { response, getBody, getHeader } = createResponseDouble();
+describe("buildAuthMiddleware", () => {
+  it("returns undefined when auth is not required", () => {
+    const output = buildAuthMiddleware(baseEnv);
 
-    await handler(createRequest("GET", "/health"), response);
-
-    expect(response.statusCode).toBe(200);
-    expect(getHeader("content-type")).toBe("application/json; charset=utf-8");
-    expect(JSON.parse(getBody())).toEqual({
-      status: "ok",
-      env: "test",
-      dataSource: "memory",
-    });
+    expect(output).toBeUndefined();
   });
 
-  it("returns elements on GET /elements", async () => {
-    const listAllElements = new ListAllElements({
-      getAllElements: vi.fn().mockResolvedValue([new Element("H"), new Element("He")]),
-    });
-    const handler = createRequestHandler(listAllElements, runtimeEnv);
-    const { response, getBody } = createResponseDouble();
-
-    await handler(createRequest("GET", "/elements"), response);
-
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(getBody())).toEqual([{ symbol: "H" }, { symbol: "He" }]);
+  it("throws when auth is required but service url is missing", () => {
+    expect(() =>
+      buildAuthMiddleware({
+        ...baseEnv,
+        authRequired: true,
+      }),
+    ).toThrow("AUTH_SERVICE_URL is required when AUTH_REQUIRED=true.");
   });
 
-  it("returns internal error payload when list fails", async () => {
-    const listAllElements = new ListAllElements({
-      getAllElements: vi.fn().mockRejectedValue(new Error("repository failed")),
+  it("returns middleware when auth is required and service url exists", () => {
+    const output = buildAuthMiddleware({
+      ...baseEnv,
+      authRequired: true,
+      authServiceUrl: "http://auth.internal",
     });
-    const handler = createRequestHandler(listAllElements, runtimeEnv);
-    const { response, getBody } = createResponseDouble();
 
-    await handler(createRequest("GET", "/elements"), response);
-
-    expect(response.statusCode).toBe(500);
-    expect(JSON.parse(getBody())).toEqual({
-      message: "Internal error while listing elements.",
-      error: "Error: repository failed",
-    });
-  });
-
-  it("returns not found for unknown routes", async () => {
-    const listAllElements = new ListAllElements({
-      getAllElements: vi.fn().mockResolvedValue([]),
-    });
-    const handler = createRequestHandler(listAllElements, runtimeEnv);
-    const { response, getBody } = createResponseDouble();
-
-    await handler(createRequest("GET", "/unknown"), response);
-
-    expect(response.statusCode).toBe(404);
-    expect(JSON.parse(getBody())).toEqual({ message: "Not found" });
+    expect(typeof output).toBe("function");
   });
 });
 

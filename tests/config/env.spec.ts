@@ -12,6 +12,9 @@ describe("buildEnv", () => {
       port: 3000,
       mongoUri: null,
       dataSource: "memory",
+      authRequired: false,
+      authServiceUrl: null,
+      authValidatePath: "/validate-token",
     });
   });
 
@@ -41,6 +44,18 @@ describe("buildEnv", () => {
   it("enforces mongo uri in production when data source is mongo", () => {
     expect(() => buildEnv({ NODE_ENV: "production", DATA_SOURCE: "mongo" })).toThrow(
       "Mongo URI is required in production when DATA_SOURCE=mongo.",
+    );
+  });
+
+  it("throws for invalid AUTH_REQUIRED value", () => {
+    expect(() => buildEnv({ AUTH_REQUIRED: "yes" })).toThrow(
+      'Invalid AUTH_REQUIRED: "yes". Use true | false.',
+    );
+  });
+
+  it("requires AUTH_SERVICE_URL when AUTH_REQUIRED=true", () => {
+    expect(() => buildEnv({ AUTH_REQUIRED: "true" })).toThrow(
+      "AUTH_SERVICE_URL is required when AUTH_REQUIRED=true.",
     );
   });
 });
