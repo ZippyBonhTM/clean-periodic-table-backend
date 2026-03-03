@@ -17,7 +17,7 @@ services:
 
   auth:
     build:
-      context: /home/zippy/clean-auth
+      context: ${AUTH_BUILD_CONTEXT:-/home/zippy/clean-auth}
       dockerfile: Dockerfile
     image: clean-auth:local
     restart: unless-stopped

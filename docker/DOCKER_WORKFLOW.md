@@ -33,6 +33,13 @@ cd /home/zippy/clean-periodic-table/Backend
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
+If your auth repo is in another directory, set `AUTH_BUILD_CONTEXT`:
+
+```bash
+export AUTH_BUILD_CONTEXT=/absolute/path/to/clean-auth
+docker compose -f docker-compose.local.yml up -d --build
+```
+
 Seed periodic table once:
 
 ```bash
