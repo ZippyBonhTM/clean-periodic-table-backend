@@ -35,6 +35,13 @@ describe("buildEnv", () => {
     expect(output.dataSource).toBe("mongo");
   });
 
+  it("accepts MONGO_URI as a supported mongo variable", () => {
+    const output = buildEnv({ MONGO_URI: "mongodb://cluster.local/periodic-table" });
+
+    expect(output.mongoUri).toBe("mongodb://cluster.local/periodic-table");
+    expect(output.dataSource).toBe("mongo");
+  });
+
   it("throws when DATA_SOURCE is mongo without uri", () => {
     expect(() => buildEnv({ DATA_SOURCE: "mongo" })).toThrow(
       "DATA_SOURCE is set to mongo but no Mongo URI was provided. Set MONGODB_URI (or fallback name).",

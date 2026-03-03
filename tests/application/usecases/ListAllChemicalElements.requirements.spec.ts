@@ -4,6 +4,7 @@ import type ElementRepository from "@/application/protocols/ElementRepository.js
 import ListAllElements from "@/application/usecases/ListAllElements.js";
 import Element from "@/domain/Element.js";
 import InMemoryElementRepository from "@/infrastructure/repositories/InMemoryElementRepository.js";
+import { makeElement } from "../../support/elementFixture.js";
 
 describe("Requirements: ListAllChemicalElements", () => {
   it("FR1 - lists chemical elements", async () => {
@@ -26,7 +27,7 @@ describe("Requirements: ListAllChemicalElements", () => {
   });
 
   it("NFR1 - stays independent from concrete repository implementation", async () => {
-    const repositoryOutput = [new Element("H")];
+    const repositoryOutput = [makeElement({ symbol: "H" })];
     const repository: ElementRepository = {
       getAllElements: vi.fn().mockResolvedValue(repositoryOutput),
     };
@@ -40,7 +41,10 @@ describe("Requirements: ListAllChemicalElements", () => {
 
   it("NFR2 - always returns a list of Element", async () => {
     const repository: ElementRepository = {
-      getAllElements: vi.fn().mockResolvedValue([new Element("H"), new Element("He")]),
+      getAllElements: vi.fn().mockResolvedValue([
+        makeElement({ symbol: "H", name: "Hydrogen" }),
+        makeElement({ symbol: "He", name: "Helium" }),
+      ]),
     };
     const sut = new ListAllElements(repository);
 

@@ -5,9 +5,9 @@ import ListAllElements from "@/application/usecases/ListAllElements.js";
 import type AuthTokenValidator from "@/application/protocols/AuthTokenValidator.js";
 import type ElementRepository from "@/application/protocols/ElementRepository.js";
 import type { AppEnv } from "@/config/env.js";
-import Element from "@/domain/Element.js";
 import { createExpressApp } from "@/http/createExpressApp.js";
 import { createRequireAuthMiddleware } from "@/http/middlewares/requireAuth.js";
+import { makeElement } from "../support/elementFixture.js";
 
 const appEnv: AppEnv = {
   nodeEnv: "test",
@@ -43,23 +43,39 @@ describe("Express endpoints", () => {
     });
   });
 
-  it("GET /elements returns all elements", async () => {
+  it("GET /elements returns all mapped element fields", async () => {
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
-        getAllElements: vi.fn().mockResolvedValue([new Element("H"), new Element("He")]),
+        getAllElements: vi
+          .fn()
+          .mockResolvedValue([
+            makeElement({ symbol: "H", name: "Hydrogen" }),
+            makeElement({ symbol: "He", name: "Helium" }),
+          ]),
       }),
     });
 
     const response = await request(app).get("/elements");
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual([{ symbol: "H" }, { symbol: "He" }]);
+    expect(response.body).toHaveLength(2);
+    expect(response.body[0]).toMatchObject({
+      symbol: "H",
+      name: "Hydrogen",
+      image: expect.objectContaining({
+        title: expect.any(String),
+      }),
+      cpk_hex: expect.any(String),
+    });
   });
 
-  it("GET /elements returns 500 when use case fails", async () => {
+  it("GET /elements returns sanitized error payload in production", async () => {
     const app = createExpressApp({
-      appEnv,
+      appEnv: {
+        ...appEnv,
+        nodeEnv: "production",
+      },
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockRejectedValue(new Error("repository failed")),
       }),
@@ -69,12 +85,42 @@ describe("Express endpoints", () => {
 
     expect(response.status).toBe(500);
     expect(response.body).toEqual({
-      message: "Internal error while listing elements.",
-      error: "Error: repository failed",
+      error: {
+        statusCode: 500,
+        code: "LIST_ELEMENTS_FAILED",
+        message: "Internal error while listing elements.",
+      },
     });
   });
 
-  it("returns 404 for unknown route", async () => {
+  it("GET /elements returns sanitized + detailed error payload in development", async () => {
+    const app = createExpressApp({
+      appEnv: {
+        ...appEnv,
+        nodeEnv: "development",
+      },
+      listAllElements: makeListAllElements({
+        getAllElements: vi.fn().mockRejectedValue(new Error("repository failed")),
+      }),
+    });
+
+    const response = await request(app).get("/elements");
+
+    expect(response.status).toBe(500);
+    expect(response.body.error).toEqual({
+      statusCode: 500,
+      code: "LIST_ELEMENTS_FAILED",
+      message: "Internal error while listing elements.",
+    });
+    expect(response.body.development).toMatchObject({
+      message: "repository failed",
+      layer: "application",
+      name: "Error",
+      stack: expect.any(String),
+    });
+  });
+
+  it("returns structured 404 for unknown route", async () => {
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
@@ -85,7 +131,13 @@ describe("Express endpoints", () => {
     const response = await request(app).get("/unknown");
 
     expect(response.status).toBe(404);
-    expect(response.body).toEqual({ message: "Not found" });
+    expect(response.body).toEqual({
+      error: {
+        statusCode: 404,
+        code: "ROUTE_NOT_FOUND",
+        message: "Not found",
+      },
+    });
   });
 });
 
@@ -97,7 +149,7 @@ describe("Express auth integration", () => {
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
-        getAllElements: vi.fn().mockResolvedValue([new Element("H")]),
+        getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
       authMiddleware: createRequireAuthMiddleware(validator),
     });
@@ -116,7 +168,7 @@ describe("Express auth integration", () => {
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
-        getAllElements: vi.fn().mockResolvedValue([new Element("H")]),
+        getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
       authMiddleware: createRequireAuthMiddleware(validator),
     });
@@ -126,7 +178,7 @@ describe("Express auth integration", () => {
       .set("Authorization", "Bearer valid-token");
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual([{ symbol: "H" }]);
+    expect(response.body[0]).toMatchObject({ symbol: "H" });
     expect(validator.validate).toHaveBeenCalledWith("valid-token");
   });
 
@@ -137,7 +189,7 @@ describe("Express auth integration", () => {
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
-        getAllElements: vi.fn().mockResolvedValue([new Element("H")]),
+        getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
       authMiddleware: createRequireAuthMiddleware(validator),
     });
@@ -157,7 +209,7 @@ describe("Express auth integration", () => {
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
-        getAllElements: vi.fn().mockResolvedValue([new Element("H")]),
+        getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
       authMiddleware: createRequireAuthMiddleware(validator),
     });

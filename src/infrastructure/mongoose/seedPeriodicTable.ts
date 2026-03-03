@@ -1,34 +1,75 @@
-import { readFileSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
 import { pathToFileURL } from "node:url";
 
 import env from "../../config/env.js";
 import type { AppEnv } from "../../config/env.js";
+import { loadPeriodicTableFixture } from "../repositories/periodicTableFixture.js";
 import { connectMongo, disconnectMongo } from "./connect.js";
-import PeriodicTableModel from "./models/PeriodicTableModel.js";
+import ElementModel from "./models/ElementModel.js";
 
-type PeriodicTableFixture = {
-  elements: Array<Record<string, unknown>>;
-};
+type PromptMongoUri = (question: string) => Promise<string>;
 
-async function seedPeriodicTable(appEnv: Pick<AppEnv, "mongoUri"> = env): Promise<void> {
-  if (appEnv.mongoUri === null) {
-    throw new Error("Missing Mongo URI. Set MONGODB_URI (or fallback equivalent) before seeding.");
+async function promptMongoUri(question: string): Promise<string> {
+  const cli = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  try {
+    return (await cli.question(question)).trim();
+  } finally {
+    cli.close();
+  }
+}
+
+async function resolveMongoUri(
+  appEnv: Pick<AppEnv, "mongoUri">,
+  askMongoUri: PromptMongoUri,
+): Promise<string> {
+  if (appEnv.mongoUri !== null && appEnv.mongoUri.trim().length > 0) {
+    return appEnv.mongoUri;
   }
 
-  const fixture = JSON.parse(
-    readFileSync(new URL("../repositories/PeriodicTable.json", import.meta.url), "utf8"),
-  ) as PeriodicTableFixture;
+  const promptedUri = (await askMongoUri("MONGO_URI: ")).trim();
 
-  await connectMongo(appEnv.mongoUri);
+  if (promptedUri.length === 0) {
+    throw new Error("Missing Mongo URI. Set MONGO_URI (or fallback equivalent) before seeding.");
+  }
 
-  await PeriodicTableModel.updateOne({}, { $set: { elements: fixture.elements } }, { upsert: true });
+  return promptedUri;
+}
+
+async function seedPeriodicTable(
+  appEnv: Pick<AppEnv, "mongoUri"> = env,
+  askMongoUri: PromptMongoUri = promptMongoUri,
+): Promise<void> {
+  const mongoUri = await resolveMongoUri(appEnv, askMongoUri);
+  const fixtureElements = loadPeriodicTableFixture();
+
+  await connectMongo(mongoUri);
+
+  for (const element of fixtureElements) {
+    await ElementModel.updateOne(
+      {
+        symbol: element.symbol,
+        name: element.name,
+      },
+      {
+        $set: element,
+      },
+      { upsert: true },
+    );
+  }
 
   await disconnectMongo();
 }
 
-async function runSeedScript(appEnv: Pick<AppEnv, "mongoUri"> = env): Promise<number> {
+async function runSeedScript(
+  appEnv: Pick<AppEnv, "mongoUri"> = env,
+  askMongoUri: PromptMongoUri = promptMongoUri,
+): Promise<number> {
   try {
-    await seedPeriodicTable(appEnv);
+    await seedPeriodicTable(appEnv, askMongoUri);
     process.stdout.write("Periodic table seed completed.\n");
     return 0;
   } catch (error: unknown) {
@@ -58,4 +99,5 @@ if (isExecutedDirectly(import.meta.url)) {
   runSeedScript().then((exitCode) => process.exit(exitCode));
 }
 
-export { isExecutedDirectly, runSeedScript, seedPeriodicTable };
+export { isExecutedDirectly, promptMongoUri, resolveMongoUri, runSeedScript, seedPeriodicTable };
+export type { PromptMongoUri };

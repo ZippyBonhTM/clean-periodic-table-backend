@@ -67,7 +67,13 @@ function parseBoolean(
 }
 
 function readMongoUri(input: EnvInput): string | null {
-  const uri = input.MONGODB_URI ?? input.MONGODB_URL ?? input.MONGO_URL ?? input.DATABASE_URL ?? null;
+  const uri =
+    input.MONGO_URI ??
+    input.MONGODB_URI ??
+    input.MONGODB_URL ??
+    input.MONGO_URL ??
+    input.DATABASE_URL ??
+    null;
 
   if (uri === null) {
     return null;

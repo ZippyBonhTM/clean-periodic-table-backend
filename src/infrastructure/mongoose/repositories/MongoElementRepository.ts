@@ -1,17 +1,18 @@
 import type ElementRepository from "../../../application/protocols/ElementRepository.js";
 import Element from "../../../domain/Element.js";
-import PeriodicTableModel from "../models/PeriodicTableModel.js";
+import ElementModel from "../models/ElementModel.js";
 
 export default class MongoElementRepository implements ElementRepository {
   async getAllElements(): Promise<Element[]> {
-    const periodicTable = await PeriodicTableModel.findOne({}, { elements: 1, _id: 0 })
+    const storedElements = await ElementModel.find({}, { _id: 0, __v: 0 })
+      .sort({ number: 1 })
       .lean()
       .exec();
 
-    if (periodicTable === null) {
+    if (storedElements.length === 0) {
       return [];
     }
 
-    return periodicTable.elements.map((element) => new Element(element.symbol));
+    return storedElements.map((element) => new Element(element));
   }
 }

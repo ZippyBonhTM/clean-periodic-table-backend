@@ -1,51 +1,66 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { execMock, leanMock, findOneMock } = vi.hoisted(() => {
+import Element from "@/domain/Element.js";
+import type { ElementDocument } from "@/infrastructure/mongoose/models/ElementModel.js";
+import MongoElementRepository from "@/infrastructure/mongoose/repositories/MongoElementRepository.js";
+import { makeElementProps } from "../../../support/elementFixture.js";
+
+const { execMock, leanMock, sortMock, findMock } = vi.hoisted(() => {
   const exec = vi.fn();
   const lean = vi.fn(() => ({ exec }));
-  const findOne = vi.fn(() => ({ lean }));
+  const sort = vi.fn(() => ({ lean }));
+  const find = vi.fn(() => ({ sort }));
 
-  return { execMock: exec, leanMock: lean, findOneMock: findOne };
+  return { execMock: exec, leanMock: lean, sortMock: sort, findMock: find };
 });
 
-vi.mock("@/infrastructure/mongoose/models/PeriodicTableModel.js", () => ({
+vi.mock("@/infrastructure/mongoose/models/ElementModel.js", () => ({
   default: {
-    findOne: findOneMock,
+    find: findMock,
   },
 }));
-
-import MongoElementRepository from "@/infrastructure/mongoose/repositories/MongoElementRepository.js";
-import Element from "@/domain/Element.js";
 
 describe("MongoElementRepository", () => {
   beforeEach(() => {
     execMock.mockReset();
     leanMock.mockClear();
-    findOneMock.mockClear();
+    sortMock.mockClear();
+    findMock.mockClear();
   });
 
-  it("returns empty list when no periodic table document exists", async () => {
-    execMock.mockResolvedValue(null);
+  it("returns empty list when collection has no document", async () => {
+    execMock.mockResolvedValue([]);
     const sut = new MongoElementRepository();
 
     const output = await sut.getAllElements();
 
     expect(output).toEqual([]);
-    expect(findOneMock).toHaveBeenCalledWith({}, { elements: 1, _id: 0 });
+    expect(findMock).toHaveBeenCalledWith({}, { _id: 0, __v: 0 });
+    expect(sortMock).toHaveBeenCalledWith({ number: 1 });
     expect(leanMock).toHaveBeenCalledTimes(1);
     expect(execMock).toHaveBeenCalledTimes(1);
   });
 
-  it("maps stored symbols into domain Element instances", async () => {
-    execMock.mockResolvedValue({
-      elements: [{ symbol: "H" }, { symbol: "He" }, { symbol: "Li" }],
-    });
+  it("maps persisted documents into full domain Element instances", async () => {
+    const hydrogen = makeElementProps({ symbol: "H", name: "Hydrogen" });
+    const helium = makeElementProps({ symbol: "He", name: "Helium", number: 2 });
+
+    execMock.mockResolvedValue([hydrogen, helium] satisfies ElementDocument[]);
     const sut = new MongoElementRepository();
 
     const output = await sut.getAllElements();
 
-    expect(output).toHaveLength(3);
+    expect(output).toHaveLength(2);
     expect(output.every((element) => element instanceof Element)).toBe(true);
-    expect(output.map((element) => element.symbol)).toEqual(["H", "He", "Li"]);
+    expect(output[0]).toMatchObject({
+      symbol: "H",
+      name: "Hydrogen",
+      cpk_hex: expect.any(String),
+    });
+    expect(output[1]).toMatchObject({
+      symbol: "He",
+      name: "Helium",
+      number: 2,
+    });
   });
 });

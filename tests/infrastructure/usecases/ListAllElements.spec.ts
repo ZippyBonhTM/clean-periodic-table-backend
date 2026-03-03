@@ -1,40 +1,28 @@
-import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 import type ElementRepository from "@/application/protocols/ElementRepository.js";
 import ListAllElements from "@/application/usecases/ListAllElements.js";
 import Element from "@/domain/Element.js";
 import InMemoryElementRepository from "@/infrastructure/repositories/InMemoryElementRepository.js";
-
-type PeriodicTableFixture = {
-  elements: Array<{ symbol: string }>;
-};
-
-const loadPeriodicTableFixture = (): PeriodicTableFixture =>
-  JSON.parse(
-    readFileSync(
-      new URL("../../../src/infrastructure/repositories/PeriodicTable.json", import.meta.url),
-      "utf8",
-    ),
-  ) as PeriodicTableFixture;
+import { getFixtureElements, makeElement } from "../../support/elementFixture.js";
 
 describe("InMemoryElementRepository", () => {
   it("returns all elements from fixture", async () => {
     const sut = new InMemoryElementRepository();
-    const periodicTableFixture = loadPeriodicTableFixture();
+    const periodicTableFixture = getFixtureElements();
 
     const output = await sut.getAllElements();
 
-    expect(periodicTableFixture.elements.length).toBeGreaterThan(0);
-    expect(output).toHaveLength(periodicTableFixture.elements.length);
+    expect(periodicTableFixture.length).toBeGreaterThan(0);
+    expect(output).toHaveLength(periodicTableFixture.length);
   });
 
   it("maps fixture items to domain Element preserving symbol order", async () => {
     const sut = new InMemoryElementRepository();
-    const periodicTableFixture = loadPeriodicTableFixture();
+    const periodicTableFixture = getFixtureElements();
 
     const output = await sut.getAllElements();
-    const expectedSymbols = periodicTableFixture.elements.map((element) => element.symbol);
+    const expectedSymbols = periodicTableFixture.map((element) => element.symbol);
 
     expect(output.every((element) => element instanceof Element)).toBe(true);
     expect(output.map((element) => element.symbol)).toEqual(expectedSymbols);
@@ -58,7 +46,7 @@ describe("InMemoryElementRepository", () => {
 
 describe("ListAllElements", () => {
   it("delegates to ElementRepository and returns repository output", async () => {
-    const repositoryOutput = [new Element("H"), new Element("He")];
+    const repositoryOutput = [makeElement({ symbol: "H", name: "Hydrogen" }), makeElement({ symbol: "He", name: "Helium" })];
     const getAllElements = vi.fn().mockResolvedValue(repositoryOutput);
     const repository: ElementRepository = { getAllElements };
     const sut = new ListAllElements(repository);
@@ -81,7 +69,7 @@ describe("ListAllElements", () => {
   });
 
   it("calls repository once per use case invocation", async () => {
-    const getAllElements = vi.fn().mockResolvedValue([new Element("H")]);
+    const getAllElements = vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]);
     const repository: ElementRepository = { getAllElements };
     const sut = new ListAllElements(repository);
 
