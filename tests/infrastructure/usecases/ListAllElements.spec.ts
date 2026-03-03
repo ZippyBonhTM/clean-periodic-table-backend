@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type ElementRepository from "@/application/protocols/ElementRepository.js";
 import ListAllElements from "@/application/usecases/ListAllElements.js";
 import Element from "@/domain/Element.js";
-import InMemoryElementRepository from "../repositories/InMemoryElementRepository.js";
+import InMemoryElementRepository from "@/infrastructure/repositories/InMemoryElementRepository.js";
 
 type PeriodicTableFixture = {
   elements: Array<{ symbol: string }>;
@@ -12,7 +12,10 @@ type PeriodicTableFixture = {
 
 const loadPeriodicTableFixture = (): PeriodicTableFixture =>
   JSON.parse(
-    readFileSync(new URL("../repositories/PeriodicTable.json", import.meta.url), "utf8"),
+    readFileSync(
+      new URL("../../../src/infrastructure/repositories/PeriodicTable.json", import.meta.url),
+      "utf8",
+    ),
   ) as PeriodicTableFixture;
 
 describe("InMemoryElementRepository", () => {
