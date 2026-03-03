@@ -1,59 +1,17 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Server } from "node:http";
 import { pathToFileURL } from "node:url";
+
+import type { RequestHandler } from "express";
 
 import ListAllElements from "./application/usecases/ListAllElements.js";
 import env from "./config/env.js";
 import type { AppEnv } from "./config/env.js";
+import { createExpressApp } from "./http/createExpressApp.js";
+import { createRequireAuthMiddleware } from "./http/middlewares/requireAuth.js";
+import AuthServiceTokenValidator from "./infrastructure/auth/AuthServiceTokenValidator.js";
 import { connectMongo, disconnectMongo } from "./infrastructure/mongoose/connect.js";
 import MongoElementRepository from "./infrastructure/mongoose/repositories/MongoElementRepository.js";
 import InMemoryElementRepository from "./infrastructure/repositories/InMemoryElementRepository.js";
-
-type RequestHandler = (
-  request: IncomingMessage,
-  response: ServerResponse<IncomingMessage>,
-) => Promise<void>;
-
-function writeJson(
-  response: ServerResponse<IncomingMessage>,
-  statusCode: number,
-  payload: unknown,
-): void {
-  response.statusCode = statusCode;
-  response.setHeader("content-type", "application/json; charset=utf-8");
-  response.end(JSON.stringify(payload));
-}
-
-function createRequestHandler(listAllElements: ListAllElements, appEnv: AppEnv): RequestHandler {
-  return async (request, response) => {
-    const method = request.method ?? "GET";
-    const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
-
-    if (method === "GET" && url.pathname === "/health") {
-      writeJson(response, 200, {
-        status: "ok",
-        env: appEnv.nodeEnv,
-        dataSource: appEnv.dataSource,
-      });
-      return;
-    }
-
-    if (method === "GET" && url.pathname === "/elements") {
-      try {
-        const elements = await listAllElements.list();
-        writeJson(response, 200, elements);
-      } catch (error: unknown) {
-        writeJson(response, 500, {
-          message: "Internal error while listing elements.",
-          error: String(error),
-        });
-      }
-      return;
-    }
-
-    writeJson(response, 404, { message: "Not found" });
-  };
-}
 
 function createShutdownHandler(
   server: Server,
@@ -80,6 +38,20 @@ function createShutdownHandler(
   };
 }
 
+function buildAuthMiddleware(appEnv: AppEnv): RequestHandler | undefined {
+  if (!appEnv.authRequired) {
+    return undefined;
+  }
+
+  if (appEnv.authServiceUrl === null) {
+    throw new Error("AUTH_SERVICE_URL is required when AUTH_REQUIRED=true.");
+  }
+
+  const validator = new AuthServiceTokenValidator(appEnv.authServiceUrl, appEnv.authValidatePath);
+
+  return createRequireAuthMiddleware(validator);
+}
+
 function isExecutedDirectly(importMetaUrl: string): boolean {
   const entrypointPath = process.argv[1];
 
@@ -100,17 +72,24 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
   const repository = isMongoSource
     ? new MongoElementRepository()
     : new InMemoryElementRepository();
-
   const listAllElements = new ListAllElements(repository);
-  const requestHandler = createRequestHandler(listAllElements, appEnv);
-  const server = createServer((request, response) => {
-    requestHandler(request, response).catch((error: unknown) => {
-      writeJson(response, 500, {
-        message: "Unexpected request failure.",
-        error: String(error),
-      });
+  const authMiddleware = buildAuthMiddleware(appEnv);
+  const appInput = {
+    appEnv,
+    listAllElements,
+    ...(authMiddleware !== undefined ? { authMiddleware } : {}),
+  };
+  const app = createExpressApp(appInput);
+
+  const server = await new Promise<Server>((resolve) => {
+    const startedServer = app.listen(appEnv.port, appEnv.host, () => {
+      process.stdout.write(
+        `Backend listening on http://${appEnv.host}:${String(appEnv.port)} (env=${appEnv.nodeEnv}, source=${appEnv.dataSource})\n`,
+      );
+      resolve(startedServer);
     });
   });
+
   const shutdown = createShutdownHandler(server, isMongoSource);
 
   process.on("SIGINT", () => {
@@ -129,15 +108,6 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
         process.stderr.write(`Shutdown error: ${String(error)}\n`);
         process.exit(1);
       });
-  });
-
-  await new Promise<void>((resolve) => {
-    server.listen(appEnv.port, appEnv.host, () => {
-      process.stdout.write(
-        `Backend listening on http://${appEnv.host}:${String(appEnv.port)} (env=${appEnv.nodeEnv}, source=${appEnv.dataSource})\n`,
-      );
-      resolve();
-    });
   });
 }
 
@@ -161,4 +131,4 @@ if (process.env.NODE_ENV !== "test" && isExecutedDirectly(import.meta.url)) {
   runMain();
 }
 
-export { bootstrap, createRequestHandler, createShutdownHandler, isExecutedDirectly, runMain };
+export { bootstrap, buildAuthMiddleware, createShutdownHandler, isExecutedDirectly, runMain };

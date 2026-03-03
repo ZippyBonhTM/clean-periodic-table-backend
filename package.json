@@ -8,19 +8,23 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
-    "postbuild": "mkdir -p dist/src/infrastructure/repositories && cp src/infrastructure/repositories/PeriodicTable.json dist/src/infrastructure/repositories/PeriodicTable.json",
-    "start": "node dist/main.js",
-    "seed:periodic-table": "node dist/infrastructure/mongoose/seedPeriodicTable.js",
+    "postbuild": "mkdir -p dist/infrastructure/repositories dist/src/infrastructure/repositories && cp src/infrastructure/repositories/PeriodicTable.json dist/infrastructure/repositories/PeriodicTable.json && cp src/infrastructure/repositories/PeriodicTable.json dist/src/infrastructure/repositories/PeriodicTable.json",
+    "start": "node --env-file=.env dist/main.js",
+    "seed:periodic-table": "node --env-file=.env dist/infrastructure/mongoose/seedPeriodicTable.js",
     "test": "vitest --run"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^25.2.3",
+    "@types/supertest": "^7.2.0",
+    "supertest": "^7.2.2",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "mongoose": "^9.2.3"
   }
 }

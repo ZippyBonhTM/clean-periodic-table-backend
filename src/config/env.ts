@@ -7,6 +7,9 @@ type AppEnv = {
   port: number;
   mongoUri: string | null;
   dataSource: DataSource;
+  authRequired: boolean;
+  authServiceUrl: string | null;
+  authValidatePath: string;
 };
 
 const validNodeEnvs: NodeEnv[] = ["development", "test", "production"];
@@ -43,6 +46,26 @@ function parseDataSource(value: string | undefined, mongoUri: string | null): Da
   return inferred as DataSource;
 }
 
+function parseBoolean(
+  value: string | undefined,
+  defaultValue: boolean,
+  fieldName: string,
+): boolean {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  throw new Error(`Invalid ${fieldName}: "${value}". Use true | false.`);
+}
+
 function readMongoUri(input: EnvInput): string | null {
   const uri = input.MONGODB_URI ?? input.MONGODB_URL ?? input.MONGO_URL ?? input.DATABASE_URL ?? null;
 
@@ -55,10 +78,25 @@ function readMongoUri(input: EnvInput): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function readAuthServiceUrl(input: EnvInput): string | null {
+  const url = input.AUTH_SERVICE_URL ?? null;
+
+  if (url === null) {
+    return null;
+  }
+
+  const trimmed = url.trim();
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function buildEnv(input: EnvInput = process.env): AppEnv {
   const nodeEnv = parseNodeEnv(input.NODE_ENV);
   const mongoUri = readMongoUri(input);
   const dataSource = parseDataSource(input.DATA_SOURCE, mongoUri);
+  const authRequired = parseBoolean(input.AUTH_REQUIRED, false, "AUTH_REQUIRED");
+  const authServiceUrl = readAuthServiceUrl(input);
+  const authValidatePath = input.AUTH_VALIDATE_PATH?.trim() || "/validate-token";
 
   if (nodeEnv === "production" && dataSource === "mongo" && mongoUri === null) {
     throw new Error("Mongo URI is required in production when DATA_SOURCE=mongo.");
@@ -70,12 +108,19 @@ function buildEnv(input: EnvInput = process.env): AppEnv {
     );
   }
 
+  if (authRequired && authServiceUrl === null) {
+    throw new Error("AUTH_SERVICE_URL is required when AUTH_REQUIRED=true.");
+  }
+
   return {
     nodeEnv,
     host: input.HOST ?? "0.0.0.0",
     port: parsePort(input.PORT),
     mongoUri,
     dataSource,
+    authRequired,
+    authServiceUrl,
+    authValidatePath,
   };
 }
 
