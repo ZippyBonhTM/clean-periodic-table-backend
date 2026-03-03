@@ -1,0 +1,71 @@
+name: clean-platform-local
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: clean-mongo-local
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_local_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://127.0.0.1:27017/admin", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  auth:
+    build:
+      context: /home/zippy/clean-auth
+      dockerfile: Dockerfile
+    image: clean-auth:local
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+      APPLICATION_PORT: 3002
+      DATA_SOURCE: mongo
+      MONGO_URI: mongodb://mongo:27017/clean_auth
+      JWT_ACCESS_SECRET: access_secret_local
+      JWT_REFRESH_SECRET: refresh_secret_local
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clean-periodic-table-backend:local
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      DATA_SOURCE: mongo
+      MONGO_URI: mongodb://mongo:27017/periodic_table
+      AUTH_REQUIRED: "true"
+      AUTH_SERVICE_URL: http://auth:3002
+      AUTH_VALIDATE_PATH: /validate-token
+
+  backend-seed:
+    image: clean-periodic-table-backend:local
+    profiles: ["seed"]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://mongo:27017/periodic_table
+    command: ["dist/src/infrastructure/mongoose/seedPeriodicTable.js"]
+
+volumes:
+  mongo_local_data:

@@ -1,0 +1,65 @@
+name: clean-platform-prod
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: clean-mongo-prod
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_prod_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://127.0.0.1:27017/admin", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  auth:
+    image: ${AUTH_IMAGE:-zippybonhtm/clean-auth}:${AUTH_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+      APPLICATION_PORT: 3002
+      DATA_SOURCE: ${AUTH_DATA_SOURCE:-mongo}
+      MONGO_URI: ${AUTH_MONGO_URI:-mongodb://mongo:27017/clean_auth}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
+
+  backend:
+    image: ${BACKEND_IMAGE:-zippybonhtm/clean-periodic-table-backend}:${BACKEND_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3001
+      DATA_SOURCE: ${BACKEND_DATA_SOURCE:-mongo}
+      MONGO_URI: ${BACKEND_MONGO_URI:-mongodb://mongo:27017/periodic_table}
+      AUTH_REQUIRED: ${AUTH_REQUIRED:-true}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth:3002}
+      AUTH_VALIDATE_PATH: ${AUTH_VALIDATE_PATH:-/validate-token}
+
+  backend-seed:
+    image: ${BACKEND_IMAGE:-zippybonhtm/clean-periodic-table-backend}:${BACKEND_TAG:-latest}
+    profiles: ["seed"]
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_URI: ${BACKEND_MONGO_URI:-mongodb://mongo:27017/periodic_table}
+    command: ["dist/src/infrastructure/mongoose/seedPeriodicTable.js"]
+
+volumes:
+  mongo_prod_data:
