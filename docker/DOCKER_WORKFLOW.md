@@ -40,6 +40,17 @@ export AUTH_BUILD_CONTEXT=/absolute/path/to/clean-auth
 docker compose -f docker-compose.local.yml up -d --build
 ```
 
+If your Docker CLI does not have `buildx`, build images first and run compose without build:
+
+```bash
+cd /home/zippy/clean-auth
+DOCKER_BUILDKIT=0 docker build -t clean-auth:local .
+
+cd /home/zippy/clean-periodic-table/Backend
+DOCKER_BUILDKIT=0 docker build -t clean-periodic-table-backend:local .
+docker compose -f docker-compose.local.yml up -d --no-build
+```
+
 Seed periodic table once:
 
 ```bash
