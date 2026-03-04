@@ -12,14 +12,45 @@ type CreateExpressAppInput = {
   authMiddleware?: RequestHandler;
 };
 
+function readAllowedOrigins(rawValue: string | undefined): Set<string> {
+  const fallback = ["http://localhost:3000", "http://127.0.0.1:3000"];
+  const source = rawValue?.trim().length ? rawValue : fallback.join(",");
+  const values = source
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return new Set(values);
+}
+
 function createExpressApp({
   appEnv,
   listAllElements,
   authMiddleware,
 }: CreateExpressAppInput): Express {
   const app = express();
+  const allowedOrigins = readAllowedOrigins(process.env.CORS_ORIGINS);
 
   app.use(express.json());
+  app.use((request, response, next) => {
+    const requestOrigin = request.headers.origin;
+    const origin = Array.isArray(requestOrigin) ? requestOrigin[0] : requestOrigin;
+
+    if (origin !== undefined && (allowedOrigins.has(origin) || allowedOrigins.has("*"))) {
+      response.header("Access-Control-Allow-Origin", origin);
+      response.header("Access-Control-Allow-Credentials", "true");
+      response.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      response.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+      response.header("Vary", "Origin");
+    }
+
+    if (request.method === "OPTIONS") {
+      response.sendStatus(204);
+      return;
+    }
+
+    next();
+  });
   app.use(
     createApiRouter({
       appEnv,
