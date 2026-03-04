@@ -25,6 +25,36 @@ function makeListAllElements(repository: ElementRepository): ListAllElements {
 }
 
 describe("Express endpoints", () => {
+  it("normalizes CORS origins configured with trailing slash", async () => {
+    const previousCorsOrigins = process.env.CORS_ORIGINS;
+    try {
+      process.env.CORS_ORIGINS = "https://frontend.example.com/";
+
+      const app = createExpressApp({
+        appEnv,
+        listAllElements: makeListAllElements({
+          getAllElements: vi.fn().mockResolvedValue([]),
+        }),
+      });
+
+      const response = await request(app)
+        .options("/elements")
+        .set("Origin", "https://frontend.example.com")
+        .set("Access-Control-Request-Method", "GET");
+
+      expect(response.status).toBe(204);
+      expect(response.headers["access-control-allow-origin"]).toBe(
+        "https://frontend.example.com",
+      );
+    } finally {
+      if (previousCorsOrigins === undefined) {
+        delete process.env.CORS_ORIGINS;
+      } else {
+        process.env.CORS_ORIGINS = previousCorsOrigins;
+      }
+    }
+  });
+
   it("GET /health returns runtime status", async () => {
     const app = createExpressApp({
       appEnv,

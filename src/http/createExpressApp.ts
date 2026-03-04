@@ -12,12 +12,31 @@ type CreateExpressAppInput = {
   authMiddleware?: RequestHandler;
 };
 
+function normalizeOrigin(value: string): string | null {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  if (trimmed === "*") {
+    return trimmed;
+  }
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return trimmed.replace(/\/+$/, "");
+  }
+}
+
 function readAllowedOrigins(rawValue: string | undefined): Set<string> {
   const fallback = ["http://localhost:3000", "http://127.0.0.1:3000"];
   const source = rawValue?.trim().length ? rawValue : fallback.join(",");
   const values = source
     .split(",")
-    .map((value) => value.trim())
+    .map((value) => normalizeOrigin(value))
+    .filter((value): value is string => value !== null)
     .filter((value) => value.length > 0);
 
   return new Set(values);
@@ -35,9 +54,13 @@ function createExpressApp({
   app.use((request, response, next) => {
     const requestOrigin = request.headers.origin;
     const origin = Array.isArray(requestOrigin) ? requestOrigin[0] : requestOrigin;
+    const normalizedOrigin = origin !== undefined ? normalizeOrigin(origin) : null;
 
-    if (origin !== undefined && (allowedOrigins.has(origin) || allowedOrigins.has("*"))) {
-      response.header("Access-Control-Allow-Origin", origin);
+    if (
+      normalizedOrigin !== null &&
+      (allowedOrigins.has(normalizedOrigin) || allowedOrigins.has("*"))
+    ) {
+      response.header("Access-Control-Allow-Origin", normalizedOrigin);
       response.header("Access-Control-Allow-Credentials", "true");
       response.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
       response.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
