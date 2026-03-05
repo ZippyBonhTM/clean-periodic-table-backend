@@ -4,8 +4,19 @@ API Node.js/Express para disponibilizar elementos químicos, com suporte a fonte
 
 ## Repositórios
 
-- Backend: https://github.com/ZippyBonhTM/clean-periodic-table
+- Backend: https://github.com/ZippyBonhTM/clean-periodic-table-backend
+- Frontend: https://github.com/ZippyBonhTM/clean-periodic-table-frontend
 - Auth: https://github.com/ZippyBonhTM/clean-auth
+
+## Execução local
+
+```bash
+npm install
+npm run build
+npm start
+```
+
+Use `.env` baseado em `.env.example`.
 
 ## Créditos
 

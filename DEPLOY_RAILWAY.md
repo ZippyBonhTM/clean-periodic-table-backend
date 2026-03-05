@@ -4,7 +4,7 @@
 
 ```bash
 docker login
-cd /home/zippy/clean-periodic-table/Backend
+cd /home/zippy/clean-periodic-table-backend
 npm run docker:publish -- <DOCKERHUB_USER> <VERSION_TAG>
 ```
 
@@ -15,7 +15,7 @@ Image names:
 
 ## Railway env vars
 
-Use `/home/zippy/clean-periodic-table/Backend/railway.env.example` as template.
+Use `/home/zippy/clean-periodic-table-backend/railway.env.example` as template.
 
 Required values:
 
