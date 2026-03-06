@@ -14,6 +14,14 @@ export default class AuthServiceTokenValidator implements AuthTokenValidator {
       },
     });
 
-    return response.ok;
+    if (response.ok) {
+      return true;
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      return false;
+    }
+
+    throw new Error(`Unexpected auth service response: ${String(response.status)}`);
   }
 }
