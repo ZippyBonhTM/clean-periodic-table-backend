@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import type { RequestHandler } from "express";
 
 import ListAllElements from "./application/usecases/ListAllElements.js";
+import ManageUserMolecules from "./application/usecases/ManageUserMolecules.js";
 import env from "./config/env.js";
 import type { AppEnv } from "./config/env.js";
 import { createExpressApp } from "./http/createExpressApp.js";
@@ -11,7 +12,9 @@ import { createRequireAuthMiddleware } from "./http/middlewares/requireAuth.js";
 import AuthServiceTokenValidator from "./infrastructure/auth/AuthServiceTokenValidator.js";
 import { connectMongo, disconnectMongo } from "./infrastructure/mongoose/connect.js";
 import MongoElementRepository from "./infrastructure/mongoose/repositories/MongoElementRepository.js";
+import MongoUserMoleculeRepository from "./infrastructure/mongoose/repositories/MongoUserMoleculeRepository.js";
 import InMemoryElementRepository from "./infrastructure/repositories/InMemoryElementRepository.js";
+import InMemoryUserMoleculeRepository from "./infrastructure/repositories/InMemoryUserMoleculeRepository.js";
 
 function createShutdownHandler(
   server: Server,
@@ -69,14 +72,19 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
     await connectMongo(appEnv.mongoUri);
   }
 
-  const repository = isMongoSource
+  const elementRepository = isMongoSource
     ? new MongoElementRepository()
     : new InMemoryElementRepository();
-  const listAllElements = new ListAllElements(repository);
+  const userMoleculeRepository = isMongoSource
+    ? new MongoUserMoleculeRepository()
+    : new InMemoryUserMoleculeRepository();
+  const listAllElements = new ListAllElements(elementRepository);
+  const manageUserMolecules = new ManageUserMolecules(userMoleculeRepository);
   const authMiddleware = buildAuthMiddleware(appEnv);
   const appInput = {
     appEnv,
     listAllElements,
+    manageUserMolecules,
     ...(authMiddleware !== undefined ? { authMiddleware } : {}),
   };
   const app = createExpressApp(appInput);
