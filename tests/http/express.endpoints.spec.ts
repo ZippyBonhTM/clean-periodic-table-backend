@@ -4,9 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import ListAllElements from "@/application/usecases/ListAllElements.js";
 import type AuthTokenValidator from "@/application/protocols/AuthTokenValidator.js";
 import type ElementRepository from "@/application/protocols/ElementRepository.js";
+import ManageUserMolecules from "@/application/usecases/ManageUserMolecules.js";
 import type { AppEnv } from "@/config/env.js";
 import { createExpressApp } from "@/http/createExpressApp.js";
 import { createRequireAuthMiddleware } from "@/http/middlewares/requireAuth.js";
+import InMemoryUserMoleculeRepository from "@/infrastructure/repositories/InMemoryUserMoleculeRepository.js";
 import { makeElement } from "../support/elementFixture.js";
 
 const appEnv: AppEnv = {
@@ -24,6 +26,10 @@ function makeListAllElements(repository: ElementRepository): ListAllElements {
   return new ListAllElements(repository);
 }
 
+function makeManageUserMolecules(): ManageUserMolecules {
+  return new ManageUserMolecules(new InMemoryUserMoleculeRepository());
+}
+
 describe("Express endpoints", () => {
   it("normalizes CORS origins configured with trailing slash", async () => {
     const previousCorsOrigins = process.env.CORS_ORIGINS;
@@ -35,6 +41,7 @@ describe("Express endpoints", () => {
         listAllElements: makeListAllElements({
           getAllElements: vi.fn().mockResolvedValue([]),
         }),
+        manageUserMolecules: makeManageUserMolecules(),
       });
 
       const response = await request(app)
@@ -61,6 +68,7 @@ describe("Express endpoints", () => {
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockResolvedValue([]),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
     });
 
     const response = await request(app).get("/health");
@@ -84,6 +92,7 @@ describe("Express endpoints", () => {
             makeElement({ symbol: "He", name: "Helium" }),
           ]),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
     });
 
     const response = await request(app).get("/elements");
@@ -109,6 +118,7 @@ describe("Express endpoints", () => {
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockRejectedValue(new Error("repository failed")),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
     });
 
     const response = await request(app).get("/elements");
@@ -132,6 +142,7 @@ describe("Express endpoints", () => {
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockRejectedValue(new Error("repository failed")),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
     });
 
     const response = await request(app).get("/elements");
@@ -156,6 +167,7 @@ describe("Express endpoints", () => {
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockResolvedValue([]),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
     });
 
     const response = await request(app).get("/unknown");
@@ -174,13 +186,14 @@ describe("Express endpoints", () => {
 describe("Express auth integration", () => {
   it("returns 401 when token is missing", async () => {
     const validator: AuthTokenValidator = {
-      validate: vi.fn().mockResolvedValue(true),
+      validate: vi.fn().mockResolvedValue({ userId: "user-1" }),
     };
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
       authMiddleware: createRequireAuthMiddleware(validator),
     });
 
@@ -193,13 +206,14 @@ describe("Express auth integration", () => {
 
   it("returns 200 when token is valid", async () => {
     const validator: AuthTokenValidator = {
-      validate: vi.fn().mockResolvedValue(true),
+      validate: vi.fn().mockResolvedValue({ userId: "user-1" }),
     };
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
       authMiddleware: createRequireAuthMiddleware(validator),
     });
 
@@ -214,13 +228,14 @@ describe("Express auth integration", () => {
 
   it("returns 401 when token is invalid", async () => {
     const validator: AuthTokenValidator = {
-      validate: vi.fn().mockResolvedValue(false),
+      validate: vi.fn().mockResolvedValue(null),
     };
     const app = createExpressApp({
       appEnv,
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
       authMiddleware: createRequireAuthMiddleware(validator),
     });
 
@@ -241,6 +256,7 @@ describe("Express auth integration", () => {
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
+      manageUserMolecules: makeManageUserMolecules(),
       authMiddleware: createRequireAuthMiddleware(validator),
     });
 

@@ -1,4 +1,11 @@
+import type {
+  AuthenticatedUser,
+} from "../../application/protocols/AuthTokenValidator.js";
 import type AuthTokenValidator from "../../application/protocols/AuthTokenValidator.js";
+
+type ValidateTokenResponse = {
+  userId?: unknown;
+};
 
 export default class AuthServiceTokenValidator implements AuthTokenValidator {
   constructor(
@@ -6,7 +13,7 @@ export default class AuthServiceTokenValidator implements AuthTokenValidator {
     private readonly validatePath: string,
   ) {}
 
-  async validate(accessToken: string): Promise<boolean> {
+  async validate(accessToken: string): Promise<AuthenticatedUser | null> {
     const response = await fetch(new URL(this.validatePath, this.serviceUrl), {
       method: "GET",
       headers: {

@@ -26,13 +26,17 @@ function createRequireAuthMiddleware(validator: AuthTokenValidator): RequestHand
     }
 
     try {
-      const isValid = await validator.validate(token);
+      const authenticatedUser = await validator.validate(token);
 
-      if (!isValid) {
+      if (authenticatedUser === null) {
         response.status(401).json({ message: "Unauthorized." });
         return;
       }
 
+      request.auth = {
+        userId: authenticatedUser.userId,
+        accessToken: token,
+      };
       next();
     } catch {
       response.status(503).json({ message: "Authentication service unavailable." });
