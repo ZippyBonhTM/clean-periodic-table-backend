@@ -1,11 +1,10 @@
-import { Router, type RequestHandler } from "express";
+import { Router } from "express";
 
 import type ListAllElements from "../../application/usecases/ListAllElements.js";
 import { AppError } from "../errors/AppError.js";
 
 type CreateElementsRoutesInput = {
   listAllElements: ListAllElements;
-  authMiddleware?: RequestHandler;
 };
 
 function toErrorMessage(error: unknown): string {
@@ -16,16 +15,10 @@ function toErrorMessage(error: unknown): string {
   return String(error);
 }
 
-function createElementsRoutes({ listAllElements, authMiddleware }: CreateElementsRoutesInput): Router {
+function createElementsRoutes({ listAllElements }: CreateElementsRoutesInput): Router {
   const router = Router();
 
-  const handlers: RequestHandler[] = [];
-
-  if (authMiddleware !== undefined) {
-    handlers.push(authMiddleware);
-  }
-
-  handlers.push(async (_request, response, next) => {
+  router.get("/elements", async (_request, response, next) => {
     try {
       const elements = await listAllElements.list();
       response.status(200).json(elements);
@@ -42,8 +35,6 @@ function createElementsRoutes({ listAllElements, authMiddleware }: CreateElement
       );
     }
   });
-
-  router.get("/elements", ...handlers);
 
   return router;
 }

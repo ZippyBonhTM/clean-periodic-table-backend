@@ -7,16 +7,21 @@ describe("AuthServiceTokenValidator", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns true when the auth service validates the token", async () => {
+  it("returns the authenticated user when the auth service validates the token", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(null, {
+      new Response(
+        JSON.stringify({
+          valid: true,
+          userId: "user-1",
+        }),
+        {
         status: 200,
       }),
     );
 
     const sut = new AuthServiceTokenValidator("http://auth.local", "/validate-token");
 
-    await expect(sut.validate("valid-token")).resolves.toBe(true);
+    await expect(sut.validate("valid-token")).resolves.toEqual({ userId: "user-1" });
     expect(globalThis.fetch).toHaveBeenCalledWith(
       new URL("/validate-token", "http://auth.local"),
       expect.objectContaining({
@@ -28,7 +33,7 @@ describe("AuthServiceTokenValidator", () => {
     );
   });
 
-  it("returns false when the auth service rejects the token", async () => {
+  it("returns null when the auth service rejects the token", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, {
         status: 401,
@@ -37,7 +42,7 @@ describe("AuthServiceTokenValidator", () => {
 
     const sut = new AuthServiceTokenValidator("http://auth.local", "/validate-token");
 
-    await expect(sut.validate("invalid-token")).resolves.toBe(false);
+    await expect(sut.validate("invalid-token")).resolves.toBeNull();
   });
 
   it("throws when the auth service responds with an unexpected status", async () => {

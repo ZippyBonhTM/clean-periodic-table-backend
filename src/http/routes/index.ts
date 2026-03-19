@@ -23,7 +23,6 @@ function createApiRouter({
   const router = Router();
   const elementsRoutesInput = {
     listAllElements,
-    ...(authMiddleware !== undefined ? { authMiddleware } : {}),
   };
   const moleculesRoutesInput = {
     manageUserMolecules,
