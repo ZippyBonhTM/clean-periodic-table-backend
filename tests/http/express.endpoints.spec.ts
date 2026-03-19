@@ -184,7 +184,7 @@ describe("Express endpoints", () => {
 });
 
 describe("Express auth integration", () => {
-  it("returns 401 when token is missing", async () => {
+  it("keeps GET /elements public even when auth middleware exists", async () => {
     const validator: AuthTokenValidator = {
       validate: vi.fn().mockResolvedValue({ userId: "user-1" }),
     };
@@ -199,12 +199,12 @@ describe("Express auth integration", () => {
 
     const response = await request(app).get("/elements");
 
-    expect(response.status).toBe(401);
-    expect(response.body).toEqual({ message: "Unauthorized." });
+    expect(response.status).toBe(200);
+    expect(response.body[0]).toMatchObject({ symbol: "H" });
     expect(validator.validate).not.toHaveBeenCalled();
   });
 
-  it("returns 200 when token is valid", async () => {
+  it("does not validate token for GET /elements even when Authorization is present", async () => {
     const validator: AuthTokenValidator = {
       validate: vi.fn().mockResolvedValue({ userId: "user-1" }),
     };
@@ -223,10 +223,10 @@ describe("Express auth integration", () => {
 
     expect(response.status).toBe(200);
     expect(response.body[0]).toMatchObject({ symbol: "H" });
-    expect(validator.validate).toHaveBeenCalledWith("valid-token");
+    expect(validator.validate).not.toHaveBeenCalled();
   });
 
-  it("returns 401 when token is invalid", async () => {
+  it("still protects molecule routes when token is missing", async () => {
     const validator: AuthTokenValidator = {
       validate: vi.fn().mockResolvedValue(null),
     };
@@ -239,15 +239,13 @@ describe("Express auth integration", () => {
       authMiddleware: createRequireAuthMiddleware(validator),
     });
 
-    const response = await request(app)
-      .get("/elements")
-      .set("Authorization", "Bearer invalid-token");
+    const response = await request(app).get("/molecules");
 
     expect(response.status).toBe(401);
     expect(response.body).toEqual({ message: "Unauthorized." });
   });
 
-  it("returns 503 when auth microservice is unavailable", async () => {
+  it("still surfaces auth dependency for molecule routes when auth service is unavailable", async () => {
     const validator: AuthTokenValidator = {
       validate: vi.fn().mockRejectedValue(new Error("auth unavailable")),
     };
@@ -261,7 +259,7 @@ describe("Express auth integration", () => {
     });
 
     const response = await request(app)
-      .get("/elements")
+      .get("/molecules")
       .set("Authorization", "Bearer any-token");
 
     expect(response.status).toBe(503);

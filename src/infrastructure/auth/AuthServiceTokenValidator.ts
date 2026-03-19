@@ -22,11 +22,19 @@ export default class AuthServiceTokenValidator implements AuthTokenValidator {
     });
 
     if (response.ok) {
-      return true;
+      const payload = (await response.json()) as ValidateTokenResponse;
+
+      if (typeof payload.userId !== "string" || payload.userId.trim().length === 0) {
+        throw new Error("Unexpected auth service payload: missing userId.");
+      }
+
+      return {
+        userId: payload.userId,
+      };
     }
 
     if (response.status === 401 || response.status === 403) {
-      return false;
+      return null;
     }
 
     throw new Error(`Unexpected auth service response: ${String(response.status)}`);
