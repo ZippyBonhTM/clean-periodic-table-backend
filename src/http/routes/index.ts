@@ -15,6 +15,7 @@ type CreateApiRouterInput = {
   manageAdminUsers?: ManageAdminUsers;
   manageUserMolecules: ManageUserMolecules;
   authMiddleware?: RequestHandler;
+  syncProductUserMiddleware?: RequestHandler;
 };
 
 function createApiRouter({
@@ -23,6 +24,7 @@ function createApiRouter({
   manageAdminUsers,
   manageUserMolecules,
   authMiddleware,
+  syncProductUserMiddleware,
 }: CreateApiRouterInput): Router {
   const router = Router();
   const elementsRoutesInput = {
@@ -31,6 +33,7 @@ function createApiRouter({
   const moleculesRoutesInput = {
     manageUserMolecules,
     ...(authMiddleware !== undefined ? { authMiddleware } : {}),
+    ...(syncProductUserMiddleware !== undefined ? { syncProductUserMiddleware } : {}),
   };
   router.use(createHealthRoutes(appEnv));
   router.use(createElementsRoutes(elementsRoutesInput));

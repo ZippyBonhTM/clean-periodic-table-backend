@@ -14,6 +14,7 @@ type CreateExpressAppInput = {
   manageAdminUsers?: ManageAdminUsers;
   manageUserMolecules: ManageUserMolecules;
   authMiddleware?: RequestHandler;
+  syncProductUserMiddleware?: RequestHandler;
 };
 
 function normalizeOrigin(value: string): string | null {
@@ -52,6 +53,7 @@ function createExpressApp({
   manageAdminUsers,
   manageUserMolecules,
   authMiddleware,
+  syncProductUserMiddleware,
 }: CreateExpressAppInput): Express {
   const app = express();
   const allowedOrigins = readAllowedOrigins(process.env.CORS_ORIGINS);
@@ -87,6 +89,7 @@ function createExpressApp({
       ...(manageAdminUsers !== undefined ? { manageAdminUsers } : {}),
       manageUserMolecules,
       ...(authMiddleware !== undefined ? { authMiddleware } : {}),
+      ...(syncProductUserMiddleware !== undefined ? { syncProductUserMiddleware } : {}),
     }),
   );
 

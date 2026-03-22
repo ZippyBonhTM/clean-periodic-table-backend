@@ -10,6 +10,7 @@ import env from "./config/env.js";
 import type { AppEnv } from "./config/env.js";
 import { createExpressApp } from "./http/createExpressApp.js";
 import { createRequireAuthMiddleware } from "./http/middlewares/requireAuth.js";
+import { createSyncAuthenticatedProductUserMiddleware } from "./http/middlewares/syncAuthenticatedProductUser.js";
 import AuthServiceTokenValidator from "./infrastructure/auth/AuthServiceTokenValidator.js";
 import AuthServiceProfileResolver from "./infrastructure/auth/AuthServiceProfileResolver.js";
 import HttpUserSessionRevoker from "./infrastructure/auth/HttpUserSessionRevoker.js";
@@ -113,12 +114,18 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
     userSessionRevoker,
   );
   const authMiddleware = buildAuthMiddleware(appEnv);
+  const syncProductUserMiddleware = createSyncAuthenticatedProductUserMiddleware({
+    authIdentityResolver,
+    productUserRepository,
+    bootstrapAdminUserIds: new Set(appEnv.adminBootstrapUserIds),
+  });
   const appInput = {
     appEnv,
     listAllElements,
     manageAdminUsers,
     manageUserMolecules,
     ...(authMiddleware !== undefined ? { authMiddleware } : {}),
+    ...(authMiddleware !== undefined ? { syncProductUserMiddleware } : {}),
   };
   const app = createExpressApp(appInput);
 

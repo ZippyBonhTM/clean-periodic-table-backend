@@ -17,6 +17,7 @@ import { AppError, isAppError } from "../errors/AppError.js";
 type CreateMoleculesRoutesInput = {
   manageUserMolecules: ManageUserMolecules;
   authMiddleware?: RequestHandler;
+  syncProductUserMiddleware?: RequestHandler;
 };
 
 type MoleculeResponse = {
@@ -52,9 +53,14 @@ function createValidationError(message: string, details?: unknown): AppError {
   });
 }
 
-function requireAuthenticationMiddleware(authMiddleware?: RequestHandler): RequestHandler[] {
+function requireAuthenticationMiddleware(
+  authMiddleware?: RequestHandler,
+  syncProductUserMiddleware?: RequestHandler,
+): RequestHandler[] {
   if (authMiddleware !== undefined) {
-    return [authMiddleware];
+    return syncProductUserMiddleware !== undefined
+      ? [authMiddleware, syncProductUserMiddleware]
+      : [authMiddleware];
   }
 
   return [(_request, response) => {
@@ -331,9 +337,10 @@ function toResponse(record: UserMoleculeRecord): MoleculeResponse {
 function createMoleculesRoutes({
   manageUserMolecules,
   authMiddleware,
+  syncProductUserMiddleware,
 }: CreateMoleculesRoutesInput): Router {
   const router = Router();
-  const authHandlers = requireAuthenticationMiddleware(authMiddleware);
+  const authHandlers = requireAuthenticationMiddleware(authMiddleware, syncProductUserMiddleware);
 
   router.get("/molecules", ...authHandlers, async (request, response, next) => {
     try {
