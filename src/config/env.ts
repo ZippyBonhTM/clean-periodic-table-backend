@@ -9,6 +9,7 @@ type AppEnv = {
   dataSource: DataSource;
   authRequired: boolean;
   authServiceUrl: string | null;
+  authInternalServiceToken: string | null;
   authValidatePath: string;
   authProfilePath: string;
   authRevokeUserSessionsPath: string | null;
@@ -99,6 +100,11 @@ function readAuthServiceUrl(input: EnvInput): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function readAuthInternalServiceToken(input: EnvInput): string | null {
+  const rawValue = input.AUTH_INTERNAL_SERVICE_TOKEN?.trim() ?? "";
+  return rawValue.length > 0 ? rawValue : null;
+}
+
 function readAdminBootstrapUserIds(input: EnvInput): string[] {
   const rawValue = input.ADMIN_BOOTSTRAP_USER_IDS?.trim() ?? "";
 
@@ -126,6 +132,7 @@ function buildEnv(input: EnvInput = process.env): AppEnv {
   const dataSource = parseDataSource(input.DATA_SOURCE, mongoUri);
   const authRequired = parseBoolean(input.AUTH_REQUIRED, false, "AUTH_REQUIRED");
   const authServiceUrl = readAuthServiceUrl(input);
+  const authInternalServiceToken = readAuthInternalServiceToken(input);
   const authValidatePath = input.AUTH_VALIDATE_PATH?.trim() || "/validate-token";
   const authProfilePath = input.AUTH_PROFILE_PATH?.trim() || "/profile";
   const authRevokeUserSessionsPath = readOptionalPath(input, "AUTH_REVOKE_USER_SESSIONS_PATH");
@@ -153,6 +160,7 @@ function buildEnv(input: EnvInput = process.env): AppEnv {
     dataSource,
     authRequired,
     authServiceUrl,
+    authInternalServiceToken,
     authValidatePath,
     authProfilePath,
     authRevokeUserSessionsPath,

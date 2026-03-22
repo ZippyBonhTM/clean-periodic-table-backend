@@ -14,6 +14,7 @@ describe("buildEnv", () => {
       dataSource: "memory",
       authRequired: false,
       authServiceUrl: null,
+      authInternalServiceToken: null,
       authValidatePath: "/validate-token",
       authProfilePath: "/profile",
       authRevokeUserSessionsPath: null,
@@ -67,5 +68,11 @@ describe("buildEnv", () => {
     expect(() => buildEnv({ AUTH_REQUIRED: "true" })).toThrow(
       "AUTH_SERVICE_URL is required when AUTH_REQUIRED=true.",
     );
+  });
+
+  it("reads the optional internal service token for auth-to-backend privileged calls", () => {
+    const output = buildEnv({ AUTH_INTERNAL_SERVICE_TOKEN: " shared-secret " });
+
+    expect(output.authInternalServiceToken).toBe("shared-secret");
   });
 });

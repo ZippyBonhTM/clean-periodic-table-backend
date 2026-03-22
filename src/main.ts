@@ -103,6 +103,7 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
       : new HttpUserSessionRevoker({
           serviceUrl: appEnv.authServiceUrl,
           pathTemplate: appEnv.authRevokeUserSessionsPath,
+          serviceToken: appEnv.authInternalServiceToken,
         });
   const listAllElements = new ListAllElements(elementRepository);
   const manageUserMolecules = new ManageUserMolecules(userMoleculeRepository);

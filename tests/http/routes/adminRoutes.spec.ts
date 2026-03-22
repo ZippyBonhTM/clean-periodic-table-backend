@@ -23,6 +23,7 @@ const appEnv: AppEnv = {
   dataSource: "memory",
   authRequired: true,
   authServiceUrl: "http://auth.internal",
+  authInternalServiceToken: null,
   authValidatePath: "/validate-token",
   authProfilePath: "/profile",
   authRevokeUserSessionsPath: null,
