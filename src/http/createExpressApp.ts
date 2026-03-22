@@ -1,6 +1,7 @@
 import express, { type Express, type RequestHandler } from "express";
 
 import type ListAllElements from "../application/usecases/ListAllElements.js";
+import type ManageAdminUsers from "../application/usecases/ManageAdminUsers.js";
 import type ManageUserMolecules from "../application/usecases/ManageUserMolecules.js";
 import type { AppEnv } from "../config/env.js";
 import { AppError } from "./errors/AppError.js";
@@ -10,6 +11,7 @@ import { createApiRouter } from "./routes/index.js";
 type CreateExpressAppInput = {
   appEnv: AppEnv;
   listAllElements: ListAllElements;
+  manageAdminUsers?: ManageAdminUsers;
   manageUserMolecules: ManageUserMolecules;
   authMiddleware?: RequestHandler;
 };
@@ -47,6 +49,7 @@ function readAllowedOrigins(rawValue: string | undefined): Set<string> {
 function createExpressApp({
   appEnv,
   listAllElements,
+  manageAdminUsers,
   manageUserMolecules,
   authMiddleware,
 }: CreateExpressAppInput): Express {
@@ -81,6 +84,7 @@ function createExpressApp({
     createApiRouter({
       appEnv,
       listAllElements,
+      ...(manageAdminUsers !== undefined ? { manageAdminUsers } : {}),
       manageUserMolecules,
       ...(authMiddleware !== undefined ? { authMiddleware } : {}),
     }),

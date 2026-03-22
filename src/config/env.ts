@@ -10,6 +10,9 @@ type AppEnv = {
   authRequired: boolean;
   authServiceUrl: string | null;
   authValidatePath: string;
+  authProfilePath: string;
+  authRevokeUserSessionsPath: string | null;
+  adminBootstrapUserIds: string[];
 };
 
 const validNodeEnvs: NodeEnv[] = ["development", "test", "production"];
@@ -96,6 +99,27 @@ function readAuthServiceUrl(input: EnvInput): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function readAdminBootstrapUserIds(input: EnvInput): string[] {
+  const rawValue = input.ADMIN_BOOTSTRAP_USER_IDS?.trim() ?? "";
+
+  if (rawValue.length === 0) {
+    return [];
+  }
+
+  return [...new Set(rawValue.split(",").map((value) => value.trim()).filter((value) => value.length > 0))];
+}
+
+function readOptionalPath(input: EnvInput, fieldName: string): string | null {
+  const rawValue = input[fieldName];
+
+  if (rawValue === undefined) {
+    return null;
+  }
+
+  const trimmed = rawValue.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function buildEnv(input: EnvInput = process.env): AppEnv {
   const nodeEnv = parseNodeEnv(input.NODE_ENV);
   const mongoUri = readMongoUri(input);
@@ -103,6 +127,9 @@ function buildEnv(input: EnvInput = process.env): AppEnv {
   const authRequired = parseBoolean(input.AUTH_REQUIRED, false, "AUTH_REQUIRED");
   const authServiceUrl = readAuthServiceUrl(input);
   const authValidatePath = input.AUTH_VALIDATE_PATH?.trim() || "/validate-token";
+  const authProfilePath = input.AUTH_PROFILE_PATH?.trim() || "/profile";
+  const authRevokeUserSessionsPath = readOptionalPath(input, "AUTH_REVOKE_USER_SESSIONS_PATH");
+  const adminBootstrapUserIds = readAdminBootstrapUserIds(input);
 
   if (nodeEnv === "production" && dataSource === "mongo" && mongoUri === null) {
     throw new Error("Mongo URI is required in production when DATA_SOURCE=mongo.");
@@ -127,6 +154,9 @@ function buildEnv(input: EnvInput = process.env): AppEnv {
     authRequired,
     authServiceUrl,
     authValidatePath,
+    authProfilePath,
+    authRevokeUserSessionsPath,
+    adminBootstrapUserIds,
   };
 }
 

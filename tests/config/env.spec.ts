@@ -15,6 +15,9 @@ describe("buildEnv", () => {
       authRequired: false,
       authServiceUrl: null,
       authValidatePath: "/validate-token",
+      authProfilePath: "/profile",
+      authRevokeUserSessionsPath: null,
+      adminBootstrapUserIds: [],
     });
   });
 

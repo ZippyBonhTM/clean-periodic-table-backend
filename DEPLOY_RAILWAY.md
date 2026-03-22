@@ -26,8 +26,11 @@ Required values:
 - `AUTH_REQUIRED=true`
 - `AUTH_SERVICE_URL=https://<AUTH_PUBLIC_DOMAIN>`
 - `AUTH_VALIDATE_PATH=/validate-token`
+- `AUTH_PROFILE_PATH=/profile`
+- `ADMIN_BOOTSTRAP_USER_IDS=<AUTH_USER_ID_OF_INITIAL_ADMIN>`
 - `CORS_ORIGINS=https://<FRONTEND_DOMAIN>`
 
 Notes:
 
 - Railway injects `PORT` automatically.
+- `AUTH_REVOKE_USER_SESSIONS_PATH` is optional for now and should only be set after `clean-auth` exposes a privileged session-revocation endpoint.
