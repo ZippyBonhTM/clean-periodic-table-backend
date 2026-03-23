@@ -28,11 +28,13 @@ Required values:
 - `AUTH_INTERNAL_SERVICE_TOKEN=<SHARED_INTERNAL_SECRET>`
 - `AUTH_VALIDATE_PATH=/validate-token`
 - `AUTH_PROFILE_PATH=/profile`
+- `AUTH_LIST_USERS_PATH=/internal/users`
 - `ADMIN_BOOTSTRAP_USER_IDS=<AUTH_USER_ID_OF_INITIAL_ADMIN>`
 - `CORS_ORIGINS=https://<FRONTEND_DOMAIN>`
 
 Notes:
 
 - Railway injects `PORT` automatically.
+- `AUTH_LIST_USERS_PATH` enables bounded legacy directory sync from `clean-auth` into `product_users`.
 - `AUTH_REVOKE_USER_SESSIONS_PATH` is optional, but when enabled it should point to the internal auth endpoint `/internal/users/:userId/sessions/revoke`.
 - `AUTH_INTERNAL_SERVICE_TOKEN` must match the same shared secret configured in `clean-auth`.

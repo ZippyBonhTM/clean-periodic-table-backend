@@ -2,6 +2,7 @@ import { Router, type Request, type RequestHandler } from "express";
 
 import type ManageAdminUsers from "../../application/usecases/ManageAdminUsers.js";
 import type {
+  AdminDirectorySyncResult,
   AdminUserModerationMutationResult,
   AdminUserRoleMutationResult,
   AdminUserSessionRevokeResult,
@@ -174,7 +175,7 @@ function parseUsersSort(
 
 function parseAuditAction(
   value: unknown,
-): "role_change" | "moderation" | "session_revoke" | "access_check" | "all" | null {
+): "role_change" | "moderation" | "session_revoke" | "directory_sync" | "access_check" | "all" | null {
   if (typeof value !== "string" || value.trim().length === 0) {
     return null;
   }
@@ -183,6 +184,7 @@ function parseAuditAction(
     value === "role_change" ||
     value === "moderation" ||
     value === "session_revoke" ||
+    value === "directory_sync" ||
     value === "access_check" ||
     value === "all"
   ) {
@@ -319,6 +321,30 @@ function parseExpiresAt(body: Record<string, unknown>): Date | null {
   return parsed;
 }
 
+function parseOptionalBodyLimit(body: Record<string, unknown>): number | undefined {
+  const rawValue = body.limit;
+
+  if (rawValue === undefined) {
+    return undefined;
+  }
+
+  if (typeof rawValue === "number" && Number.isInteger(rawValue)) {
+    return rawValue;
+  }
+
+  if (typeof rawValue === "string" && /^[0-9]+$/.test(rawValue.trim())) {
+    return Number.parseInt(rawValue.trim(), 10);
+  }
+
+  throw new AppError({
+    statusCode: 400,
+    code: "INVALID_ADMIN_INPUT",
+    message: "limit must be an integer.",
+    publicMessage: "limit must be an integer.",
+    layer: "http",
+  });
+}
+
 function toUserSummary(user: Awaited<ReturnType<ManageAdminUsers["listUsers"]>>["items"][number]) {
   return {
     ...user,
@@ -369,6 +395,17 @@ function toModerationMutationResponse(result: AdminUserModerationMutationResult)
 function toSessionRevokeResponse(result: AdminUserSessionRevokeResult) {
   return {
     revokedSessionCount: result.revokedSessionCount,
+    auditEntryId: result.auditEntryId,
+    message: result.message,
+  };
+}
+
+function toDirectorySyncResponse(result: AdminDirectorySyncResult) {
+  return {
+    itemsSynced: result.itemsSynced,
+    createdCount: result.createdCount,
+    updatedCount: result.updatedCount,
+    nextCursor: result.nextCursor,
     auditEntryId: result.auditEntryId,
     message: result.message,
   };
@@ -496,6 +533,24 @@ function createAdminRoutes({ manageAdminUsers, authMiddleware }: CreateAdminRout
       });
 
       response.status(200).json(toSessionRevokeResponse(result));
+    } catch (error: unknown) {
+      next(error);
+    }
+  });
+
+  router.post("/api/v1/admin/users/sync-directory", ...authHandlers, async (request, response, next) => {
+    try {
+      const body = isRecord(request.body) ? request.body : {};
+      const parsedLimit = parseOptionalBodyLimit(body);
+
+      const result = await manageAdminUsers.syncUserDirectory({
+        accessToken: getAuthenticatedAccessToken(request),
+        cursor: parseOptionalString(body.cursor),
+        ...(parsedLimit !== undefined ? { limit: parsedLimit } : {}),
+        ipAddress: parseIpAddress(request),
+      });
+
+      response.status(200).json(toDirectorySyncResponse(result));
     } catch (error: unknown) {
       next(error);
     }

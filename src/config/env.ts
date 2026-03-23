@@ -12,6 +12,7 @@ type AppEnv = {
   authInternalServiceToken: string | null;
   authValidatePath: string;
   authProfilePath: string;
+  authListUsersPath: string | null;
   authRevokeUserSessionsPath: string | null;
   adminBootstrapUserIds: string[];
 };
@@ -135,6 +136,7 @@ function buildEnv(input: EnvInput = process.env): AppEnv {
   const authInternalServiceToken = readAuthInternalServiceToken(input);
   const authValidatePath = input.AUTH_VALIDATE_PATH?.trim() || "/validate-token";
   const authProfilePath = input.AUTH_PROFILE_PATH?.trim() || "/profile";
+  const authListUsersPath = readOptionalPath(input, "AUTH_LIST_USERS_PATH");
   const authRevokeUserSessionsPath = readOptionalPath(input, "AUTH_REVOKE_USER_SESSIONS_PATH");
   const adminBootstrapUserIds = readAdminBootstrapUserIds(input);
 
@@ -163,6 +165,7 @@ function buildEnv(input: EnvInput = process.env): AppEnv {
     authInternalServiceToken,
     authValidatePath,
     authProfilePath,
+    authListUsersPath,
     authRevokeUserSessionsPath,
     adminBootstrapUserIds,
   };

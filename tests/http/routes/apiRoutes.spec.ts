@@ -21,6 +21,7 @@ const appEnv: AppEnv = {
   authInternalServiceToken: null,
   authValidatePath: "/validate-token",
   authProfilePath: "/profile",
+  authListUsersPath: null,
   authRevokeUserSessionsPath: null,
   adminBootstrapUserIds: [],
 };

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type AuthIdentityResolver from "@/application/protocols/AuthIdentityResolver.js";
 import type AuthTokenValidator from "@/application/protocols/AuthTokenValidator.js";
+import type AuthUserDirectoryReader from "@/application/protocols/AuthUserDirectoryReader.js";
 import ListAllElements from "@/application/usecases/ListAllElements.js";
 import ManageAdminUsers from "@/application/usecases/ManageAdminUsers.js";
 import ManageUserMolecules from "@/application/usecases/ManageUserMolecules.js";
@@ -26,6 +27,7 @@ const appEnv: AppEnv = {
   authInternalServiceToken: null,
   authValidatePath: "/validate-token",
   authProfilePath: "/profile",
+  authListUsersPath: null,
   authRevokeUserSessionsPath: null,
   adminBootstrapUserIds: ["admin-1"],
 };
@@ -34,6 +36,10 @@ type AdminTestContext = {
   app: ReturnType<typeof createExpressApp>;
   productUsers: InMemoryProductUserRepository;
   audits: InMemoryAdminAuditRepository;
+};
+
+type AdminTestOverrides = {
+  authUserDirectoryReader?: AuthUserDirectoryReader | null;
 };
 
 function makeIdentityResolver(): AuthIdentityResolver {
@@ -87,7 +93,7 @@ function makeAuthMiddleware() {
   return createRequireAuthMiddleware(validator);
 }
 
-function createAdminTestContext(): AdminTestContext {
+function createAdminTestContext(overrides: AdminTestOverrides = {}): AdminTestContext {
   const productUsers = new InMemoryProductUserRepository();
   const audits = new InMemoryAdminAuditRepository();
   const manageAdminUsers = new ManageAdminUsers(
@@ -96,6 +102,7 @@ function createAdminTestContext(): AdminTestContext {
     makeIdentityResolver(),
     new Set(["admin-1"]),
     null,
+    overrides.authUserDirectoryReader ?? null,
   );
   const app = createExpressApp({
     appEnv,
@@ -306,6 +313,83 @@ describe("admin routes", () => {
     expect(response.status).toBe(503);
     expect(response.body.error).toMatchObject({
       code: "ADMIN_DEPENDENCY_UNAVAILABLE",
+    });
+  });
+
+  it("synchronizes bounded auth users into the product directory and records audit metadata", async () => {
+    const directoryReader: AuthUserDirectoryReader = {
+      isAvailable() {
+        return true;
+      },
+      async list() {
+        return {
+          items: [
+            {
+              id: "legacy-1",
+              name: "Legacy One",
+              email: "legacy-1@example.com",
+            },
+            {
+              id: "legacy-2",
+              name: "Legacy Two",
+              email: "legacy-2@example.com",
+            },
+          ],
+          nextCursor: "cursor-2",
+        };
+      },
+    };
+    const { app, productUsers } = createAdminTestContext({
+      authUserDirectoryReader: directoryReader,
+    });
+
+    await productUsers.upsertIdentity({
+      identity: {
+        id: "legacy-2",
+        name: "Legacy Existing",
+        email: "legacy-existing@example.com",
+      },
+      defaultRole: "USER",
+      forceAdmin: false,
+      touchLastSeenAt: null,
+    });
+
+    const response = await request(app)
+      .post("/api/v1/admin/users/sync-directory")
+      .set("Authorization", "Bearer admin-token")
+      .send({
+        limit: 2,
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      itemsSynced: 2,
+      createdCount: 1,
+      updatedCount: 1,
+      nextCursor: "cursor-2",
+      auditEntryId: expect.any(String),
+      message: "User directory synchronized.",
+    });
+
+    const syncedUser = await productUsers.findById("legacy-1");
+    expect(syncedUser).toMatchObject({
+      id: "legacy-1",
+      accountVersion: "legacy",
+      role: "USER",
+    });
+
+    const auditResponse = await request(app)
+      .get("/api/v1/admin/audit?action=directory_sync")
+      .set("Authorization", "Bearer admin-token");
+
+    expect(auditResponse.status).toBe(200);
+    expect(auditResponse.body.items).toHaveLength(1);
+    expect(auditResponse.body.items[0]).toMatchObject({
+      action: "directory_sync",
+      actor: {
+        email: "admin@example.com",
+      },
+      target: null,
     });
   });
 });
