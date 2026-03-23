@@ -4,16 +4,25 @@ import { pathToFileURL } from "node:url";
 import type { RequestHandler } from "express";
 
 import ListAllElements from "./application/usecases/ListAllElements.js";
+import ManageAdminUsers from "./application/usecases/ManageAdminUsers.js";
 import ManageUserMolecules from "./application/usecases/ManageUserMolecules.js";
 import env from "./config/env.js";
 import type { AppEnv } from "./config/env.js";
 import { createExpressApp } from "./http/createExpressApp.js";
 import { createRequireAuthMiddleware } from "./http/middlewares/requireAuth.js";
+import { createSyncAuthenticatedProductUserMiddleware } from "./http/middlewares/syncAuthenticatedProductUser.js";
 import AuthServiceTokenValidator from "./infrastructure/auth/AuthServiceTokenValidator.js";
+import AuthServiceProfileResolver from "./infrastructure/auth/AuthServiceProfileResolver.js";
+import HttpUserSessionRevoker from "./infrastructure/auth/HttpUserSessionRevoker.js";
+import UnavailableAuthIdentityResolver from "./infrastructure/auth/UnavailableAuthIdentityResolver.js";
 import { connectMongo, disconnectMongo } from "./infrastructure/mongoose/connect.js";
+import MongoAdminAuditRepository from "./infrastructure/mongoose/repositories/MongoAdminAuditRepository.js";
 import MongoElementRepository from "./infrastructure/mongoose/repositories/MongoElementRepository.js";
+import MongoProductUserRepository from "./infrastructure/mongoose/repositories/MongoProductUserRepository.js";
 import MongoUserMoleculeRepository from "./infrastructure/mongoose/repositories/MongoUserMoleculeRepository.js";
+import InMemoryAdminAuditRepository from "./infrastructure/repositories/InMemoryAdminAuditRepository.js";
 import InMemoryElementRepository from "./infrastructure/repositories/InMemoryElementRepository.js";
+import InMemoryProductUserRepository from "./infrastructure/repositories/InMemoryProductUserRepository.js";
 import InMemoryUserMoleculeRepository from "./infrastructure/repositories/InMemoryUserMoleculeRepository.js";
 
 function createShutdownHandler(
@@ -75,17 +84,49 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
   const elementRepository = isMongoSource
     ? new MongoElementRepository()
     : new InMemoryElementRepository();
+  const productUserRepository = isMongoSource
+    ? new MongoProductUserRepository()
+    : new InMemoryProductUserRepository();
+  const adminAuditRepository = isMongoSource
+    ? new MongoAdminAuditRepository()
+    : new InMemoryAdminAuditRepository();
   const userMoleculeRepository = isMongoSource
     ? new MongoUserMoleculeRepository()
     : new InMemoryUserMoleculeRepository();
+  const authIdentityResolver =
+    appEnv.authServiceUrl === null
+      ? new UnavailableAuthIdentityResolver()
+      : new AuthServiceProfileResolver(appEnv.authServiceUrl, appEnv.authProfilePath);
+  const userSessionRevoker =
+    appEnv.authServiceUrl === null
+      ? null
+      : new HttpUserSessionRevoker({
+          serviceUrl: appEnv.authServiceUrl,
+          pathTemplate: appEnv.authRevokeUserSessionsPath,
+          serviceToken: appEnv.authInternalServiceToken,
+        });
   const listAllElements = new ListAllElements(elementRepository);
   const manageUserMolecules = new ManageUserMolecules(userMoleculeRepository);
+  const manageAdminUsers = new ManageAdminUsers(
+    productUserRepository,
+    adminAuditRepository,
+    authIdentityResolver,
+    new Set(appEnv.adminBootstrapUserIds),
+    userSessionRevoker,
+  );
   const authMiddleware = buildAuthMiddleware(appEnv);
+  const syncProductUserMiddleware = createSyncAuthenticatedProductUserMiddleware({
+    authIdentityResolver,
+    productUserRepository,
+    bootstrapAdminUserIds: new Set(appEnv.adminBootstrapUserIds),
+  });
   const appInput = {
     appEnv,
     listAllElements,
+    manageAdminUsers,
     manageUserMolecules,
     ...(authMiddleware !== undefined ? { authMiddleware } : {}),
+    ...(authMiddleware !== undefined ? { syncProductUserMiddleware } : {}),
   };
   const app = createExpressApp(appInput);
 

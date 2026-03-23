@@ -18,7 +18,11 @@ const appEnv: AppEnv = {
   dataSource: "memory",
   authRequired: false,
   authServiceUrl: null,
+  authInternalServiceToken: null,
   authValidatePath: "/validate-token",
+  authProfilePath: "/profile",
+  authRevokeUserSessionsPath: null,
+  adminBootstrapUserIds: [],
 };
 
 function makeListAllElements(repository: ElementRepository): ListAllElements {

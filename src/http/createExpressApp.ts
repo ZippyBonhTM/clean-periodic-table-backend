@@ -1,6 +1,7 @@
 import express, { type Express, type RequestHandler } from "express";
 
 import type ListAllElements from "../application/usecases/ListAllElements.js";
+import type ManageAdminUsers from "../application/usecases/ManageAdminUsers.js";
 import type ManageUserMolecules from "../application/usecases/ManageUserMolecules.js";
 import type { AppEnv } from "../config/env.js";
 import { AppError } from "./errors/AppError.js";
@@ -10,8 +11,10 @@ import { createApiRouter } from "./routes/index.js";
 type CreateExpressAppInput = {
   appEnv: AppEnv;
   listAllElements: ListAllElements;
+  manageAdminUsers?: ManageAdminUsers;
   manageUserMolecules: ManageUserMolecules;
   authMiddleware?: RequestHandler;
+  syncProductUserMiddleware?: RequestHandler;
 };
 
 function normalizeOrigin(value: string): string | null {
@@ -47,8 +50,10 @@ function readAllowedOrigins(rawValue: string | undefined): Set<string> {
 function createExpressApp({
   appEnv,
   listAllElements,
+  manageAdminUsers,
   manageUserMolecules,
   authMiddleware,
+  syncProductUserMiddleware,
 }: CreateExpressAppInput): Express {
   const app = express();
   const allowedOrigins = readAllowedOrigins(process.env.CORS_ORIGINS);
@@ -81,8 +86,10 @@ function createExpressApp({
     createApiRouter({
       appEnv,
       listAllElements,
+      ...(manageAdminUsers !== undefined ? { manageAdminUsers } : {}),
       manageUserMolecules,
       ...(authMiddleware !== undefined ? { authMiddleware } : {}),
+      ...(syncProductUserMiddleware !== undefined ? { syncProductUserMiddleware } : {}),
     }),
   );
 
