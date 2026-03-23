@@ -41,6 +41,7 @@ Os endpoints abaixo pertencem ao backend do produto e usam o token emitido pelo 
 
 - `GET /api/v1/admin/session`
 - `GET /api/v1/admin/users`
+- `POST /api/v1/admin/users/sync-directory`
 - `GET /api/v1/admin/users/:userId`
 - `POST /api/v1/admin/users/:userId/role`
 - `POST /api/v1/admin/users/:userId/moderation`
@@ -51,11 +52,14 @@ Notas:
 
 - a role `ADMIN` pertence ao backend do produto
 - admins iniciais são bootstrapados por `ADMIN_BOOTSTRAP_USER_IDS`
+- o sync legado do diretório depende de:
+  - `AUTH_LIST_USERS_PATH=/internal/users`
+  - `AUTH_INTERNAL_SERVICE_TOKEN=<shared-secret-with-clean-auth>`
 - a revogação de sessões via admin depende de:
   - `AUTH_REVOKE_USER_SESSIONS_PATH=/internal/users/:userId/sessions/revoke`
   - `AUTH_INTERNAL_SERVICE_TOKEN=<shared-secret-with-clean-auth>`
 - `clean-auth` continua sendo o IdP e dono de tokens/sessões
-- a revogação de sessões de terceiros depende de um endpoint administrativo futuro no auth e hoje responde como indisponível enquanto esse bridge não existir
+- a revogação atual invalida a continuidade da sessão via refresh no auth; access tokens já emitidos continuam válidos até expirarem
 
 Cada molécula salva contém:
 

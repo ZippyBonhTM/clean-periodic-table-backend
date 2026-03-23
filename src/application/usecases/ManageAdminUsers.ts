@@ -1,6 +1,7 @@
 import type AdminAuditRepository from "../protocols/AdminAuditRepository.js";
 import type { ListAdminAuditInput } from "../protocols/AdminAuditRepository.js";
 import type AuthIdentityResolver from "../protocols/AuthIdentityResolver.js";
+import type AuthUserDirectoryReader from "../protocols/AuthUserDirectoryReader.js";
 import type ProductUserRepository from "../protocols/ProductUserRepository.js";
 import type { ProductUserListInput } from "../protocols/ProductUserRepository.js";
 import type UserSessionRevoker from "../protocols/UserSessionRevoker.js";
@@ -60,6 +61,23 @@ type AdminUserSessionRevokeResult = {
   auditEntryId: string | null;
   message: string;
 };
+
+type SyncUserDirectoryInput = MutationContext & {
+  cursor?: string | null;
+  limit?: number;
+};
+
+type AdminDirectorySyncResult = {
+  itemsSynced: number;
+  createdCount: number;
+  updatedCount: number;
+  nextCursor: string | null;
+  auditEntryId: string | null;
+  message: string;
+};
+
+const DEFAULT_DIRECTORY_SYNC_LIMIT = 25;
+const MAX_DIRECTORY_SYNC_LIMIT = 100;
 
 function createForbiddenError(message = "Admin access denied."): AppError {
   return new AppError({
@@ -164,6 +182,7 @@ export default class ManageAdminUsers {
     private readonly authIdentityResolver: AuthIdentityResolver,
     private readonly bootstrapAdminUserIds: Set<string>,
     private readonly userSessionRevoker: UserSessionRevoker | null = null,
+    private readonly authUserDirectoryReader: AuthUserDirectoryReader | null = null,
   ) {}
 
   async getAdminSession(accessToken: string): Promise<{ user: ProductUserIdentity & { role: AdminUserRole } }> {
@@ -335,6 +354,59 @@ export default class ManageAdminUsers {
     };
   }
 
+  async syncUserDirectory(input: SyncUserDirectoryInput): Promise<AdminDirectorySyncResult> {
+    const actor = await this.requireAdminActor(input.accessToken);
+    const reader = this.authUserDirectoryReader;
+
+    if (reader === null || !reader.isAvailable()) {
+      throw createUnavailableError("Auth user directory sync is not configured.");
+    }
+
+    const limit = this.normalizeDirectorySyncLimit(input.limit);
+    const page = await reader.list({
+      cursor: input.cursor?.trim() ?? null,
+      limit,
+    });
+
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    for (const identity of page.items) {
+      const existing = await this.productUserRepository.findById(identity.id);
+
+      await this.productUserRepository.upsertIdentity({
+        identity,
+        defaultRole: "USER",
+        forceAdmin: this.bootstrapAdminUserIds.has(identity.id),
+        accountVersion: "legacy",
+        touchLastSeenAt: null,
+      });
+
+      if (existing === null) {
+        createdCount += 1;
+      } else {
+        updatedCount += 1;
+      }
+    }
+
+    const auditEntry = await this.adminAuditRepository.append({
+      action: "directory_sync",
+      summary: `${actor.email} synchronized ${String(page.items.length)} auth identities into the product directory.`,
+      actor: this.toActorSnapshot(actor),
+      target: null,
+      ipAddress: input.ipAddress,
+    });
+
+    return {
+      itemsSynced: page.items.length,
+      createdCount,
+      updatedCount,
+      nextCursor: page.nextCursor,
+      auditEntryId: auditEntry.id,
+      message: "User directory synchronized.",
+    };
+  }
+
   async listAudit(accessToken: string, input: ListAdminAuditInput): Promise<AdminCursorPage<AdminAuditRecord>> {
     await this.requireAdminActor(accessToken);
     return await this.adminAuditRepository.list(input);
@@ -444,13 +516,27 @@ export default class ManageAdminUsers {
       email: target.email,
     };
   }
+
+  private normalizeDirectorySyncLimit(value: number | undefined): number {
+    if (value === undefined) {
+      return DEFAULT_DIRECTORY_SYNC_LIMIT;
+    }
+
+    if (!Number.isInteger(value) || value < 1) {
+      throw createValidationError("limit must be a positive integer.");
+    }
+
+    return Math.min(value, MAX_DIRECTORY_SYNC_LIMIT);
+  }
 }
 
 export type {
+  AdminDirectorySyncResult,
   AdminUserModerationMutationResult,
   AdminUserRoleMutationResult,
   AdminUserSessionRevokeResult,
   ChangeUserRoleInput,
   ModerateUserInput,
   RevokeSessionsInput,
+  SyncUserDirectoryInput,
 };

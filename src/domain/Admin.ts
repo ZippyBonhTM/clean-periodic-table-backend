@@ -58,6 +58,7 @@ export type AdminAuditAction =
   | "role_change"
   | "moderation"
   | "session_revoke"
+  | "directory_sync"
   | "access_check";
 
 export type AdminAuditActor = {

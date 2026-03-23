@@ -17,6 +17,7 @@ describe("buildEnv", () => {
       authInternalServiceToken: null,
       authValidatePath: "/validate-token",
       authProfilePath: "/profile",
+      authListUsersPath: null,
       authRevokeUserSessionsPath: null,
       adminBootstrapUserIds: [],
     });
@@ -74,5 +75,11 @@ describe("buildEnv", () => {
     const output = buildEnv({ AUTH_INTERNAL_SERVICE_TOKEN: " shared-secret " });
 
     expect(output.authInternalServiceToken).toBe("shared-secret");
+  });
+
+  it("reads the optional internal auth directory path", () => {
+    const output = buildEnv({ AUTH_LIST_USERS_PATH: " /internal/users " });
+
+    expect(output.authListUsersPath).toBe("/internal/users");
   });
 });

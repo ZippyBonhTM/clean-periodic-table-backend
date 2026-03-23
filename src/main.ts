@@ -12,6 +12,7 @@ import { createExpressApp } from "./http/createExpressApp.js";
 import { createRequireAuthMiddleware } from "./http/middlewares/requireAuth.js";
 import { createSyncAuthenticatedProductUserMiddleware } from "./http/middlewares/syncAuthenticatedProductUser.js";
 import AuthServiceTokenValidator from "./infrastructure/auth/AuthServiceTokenValidator.js";
+import HttpAuthUserDirectoryReader from "./infrastructure/auth/HttpAuthUserDirectoryReader.js";
 import AuthServiceProfileResolver from "./infrastructure/auth/AuthServiceProfileResolver.js";
 import HttpUserSessionRevoker from "./infrastructure/auth/HttpUserSessionRevoker.js";
 import UnavailableAuthIdentityResolver from "./infrastructure/auth/UnavailableAuthIdentityResolver.js";
@@ -105,6 +106,14 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
           pathTemplate: appEnv.authRevokeUserSessionsPath,
           serviceToken: appEnv.authInternalServiceToken,
         });
+  const authUserDirectoryReader =
+    appEnv.authServiceUrl === null
+      ? null
+      : new HttpAuthUserDirectoryReader({
+          serviceUrl: appEnv.authServiceUrl,
+          pathTemplate: appEnv.authListUsersPath,
+          serviceToken: appEnv.authInternalServiceToken,
+        });
   const listAllElements = new ListAllElements(elementRepository);
   const manageUserMolecules = new ManageUserMolecules(userMoleculeRepository);
   const manageAdminUsers = new ManageAdminUsers(
@@ -113,6 +122,7 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
     authIdentityResolver,
     new Set(appEnv.adminBootstrapUserIds),
     userSessionRevoker,
+    authUserDirectoryReader,
   );
   const authMiddleware = buildAuthMiddleware(appEnv);
   const syncProductUserMiddleware = createSyncAuthenticatedProductUserMiddleware({

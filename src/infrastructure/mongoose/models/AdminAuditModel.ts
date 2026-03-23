@@ -38,7 +38,7 @@ const adminAuditSchema = new mongoose.Schema<AdminAuditDocument>(
     action: {
       type: String,
       required: true,
-      enum: ["role_change", "moderation", "session_revoke", "access_check"],
+      enum: ["role_change", "moderation", "session_revoke", "directory_sync", "access_check"],
       index: true,
     },
     summary: { type: String, required: true },
