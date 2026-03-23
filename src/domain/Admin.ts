@@ -2,6 +2,8 @@ export type AdminUserRole = "USER" | "ADMIN";
 
 export type AdminUserAccountStatus = "active" | "restricted" | "suspended";
 
+export type ProductUserAccountVersion = "legacy" | "product-v1";
+
 export type ProductUserIdentity = {
   id: string;
   name: string;
@@ -15,6 +17,7 @@ export type ProductUserRestriction = {
 
 export type ProductUserRecord = ProductUserIdentity & {
   role: AdminUserRole;
+  accountVersion: ProductUserAccountVersion;
   accountStatus: AdminUserAccountStatus;
   restriction: ProductUserRestriction | null;
   createdAt: Date;
@@ -37,6 +40,7 @@ export type AdminUserSummary = {
   name: string;
   email: string;
   role: AdminUserRole;
+  accountVersion: ProductUserAccountVersion;
   accountStatus: AdminUserAccountStatus;
   createdAt: Date;
   updatedAt: Date;

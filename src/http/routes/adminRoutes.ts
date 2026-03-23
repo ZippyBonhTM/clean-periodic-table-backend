@@ -129,6 +129,24 @@ function parseAccountStatus(value: unknown): "active" | "restricted" | "suspende
   });
 }
 
+function parseAccountVersion(value: unknown): "legacy" | "product-v1" | "all" | null {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return null;
+  }
+
+  if (value === "legacy" || value === "product-v1" || value === "all") {
+    return value;
+  }
+
+  throw new AppError({
+    statusCode: 400,
+    code: "INVALID_ADMIN_INPUT",
+    message: "version must be legacy, product-v1, or all.",
+    publicMessage: "version must be legacy, product-v1, or all.",
+    layer: "http",
+  });
+}
+
 function parseUsersSort(
   value: unknown,
 ): "created-desc" | "created-asc" | "last-seen-desc" | "last-seen-asc" {
@@ -376,6 +394,7 @@ function createAdminRoutes({ manageAdminUsers, authMiddleware }: CreateAdminRout
         limit: parseLimit(request.query.limit),
         query: parseOptionalString(request.query.q),
         role: parseRole(request.query.role),
+        version: parseAccountVersion(request.query.version),
         status: parseAccountStatus(request.query.status),
         sort: parseUsersSort(request.query.sort),
       });

@@ -1,6 +1,7 @@
 import type {
   AdminCursorPage,
   AdminUserAccountStatus,
+  ProductUserAccountVersion,
   AdminUserRole,
   AdminUsersSort,
   ProductUserIdentity,
@@ -12,6 +13,7 @@ export type ProductUserListInput = {
   limit: number;
   query?: string | null;
   role?: AdminUserRole | "all" | null;
+  version?: ProductUserAccountVersion | "all" | null;
   status?: AdminUserAccountStatus | "all" | null;
   sort: AdminUsersSort;
 };
@@ -20,6 +22,7 @@ export type UpsertProductUserIdentityInput = {
   identity: ProductUserIdentity;
   defaultRole: AdminUserRole;
   forceAdmin: boolean;
+  accountVersion?: ProductUserAccountVersion | null;
   touchLastSeenAt?: Date | null;
 };
 

@@ -168,6 +168,7 @@ describe("admin routes", () => {
     expect(listResponse.body.items[0]).toMatchObject({
       id: expect.any(String),
       email: expect.any(String),
+      accountVersion: "legacy",
     });
 
     const detailResponse = await request(app)
@@ -179,12 +180,55 @@ describe("admin routes", () => {
       id: "user-1",
       email: "user@example.com",
       role: "USER",
+      accountVersion: "legacy",
       capabilities: {
         canChangeRole: true,
         canModerate: true,
         canRevokeSessions: false,
         isSelf: false,
       },
+    });
+  });
+
+  it("filters the directory by account version", async () => {
+    const { app, productUsers } = createAdminTestContext();
+
+    await productUsers.upsertIdentity({
+      identity: {
+        id: "user-1",
+        name: "User One",
+        email: "user@example.com",
+      },
+      defaultRole: "USER",
+      forceAdmin: false,
+      accountVersion: "legacy",
+      touchLastSeenAt: new Date("2026-03-22T19:00:00.000Z"),
+    });
+
+    await productUsers.save({
+      id: "user-2",
+      name: "User Two",
+      email: "user-two@example.com",
+      role: "USER",
+      accountVersion: "product-v1",
+      accountStatus: "active",
+      restriction: null,
+      createdAt: new Date("2026-03-22T19:05:00.000Z"),
+      updatedAt: new Date("2026-03-22T19:05:00.000Z"),
+      lastSeenAt: new Date("2026-03-22T19:05:00.000Z"),
+      lastSeenSortAt: new Date("2026-03-22T19:05:00.000Z"),
+      lastAuditAt: null,
+    });
+
+    const response = await request(app)
+      .get("/api/v1/admin/users?version=product-v1&sort=created-desc")
+      .set("Authorization", "Bearer admin-token");
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0]).toMatchObject({
+      id: "user-2",
+      accountVersion: "product-v1",
     });
   });
 
@@ -215,6 +259,7 @@ describe("admin routes", () => {
       user: {
         id: "user-1",
         role: "ADMIN",
+        accountVersion: "legacy",
       },
       auditEntryId: expect.any(String),
       message: "User role updated.",

@@ -136,6 +136,7 @@ function toAdminUserSummary(user: ProductUserRecord): AdminUserSummary {
     name: user.name,
     email: user.email,
     role: user.role,
+    accountVersion: user.accountVersion,
     accountStatus: user.accountStatus,
     createdAt: new Date(user.createdAt),
     updatedAt: new Date(user.updatedAt),
@@ -357,6 +358,7 @@ export default class ManageAdminUsers {
       identity,
       defaultRole: "USER",
       forceAdmin: this.bootstrapAdminUserIds.has(identity.id),
+      accountVersion: "legacy",
       touchLastSeenAt: new Date(),
     });
   }

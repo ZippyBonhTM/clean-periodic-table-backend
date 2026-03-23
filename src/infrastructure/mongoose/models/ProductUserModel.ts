@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import type {
   AdminUserAccountStatus,
   AdminUserRole,
+  ProductUserAccountVersion,
   ProductUserRestriction,
 } from "../../../domain/Admin.js";
 
@@ -11,6 +12,7 @@ type ProductUserDocument = {
   name: string;
   email: string;
   role: AdminUserRole;
+  accountVersion?: ProductUserAccountVersion;
   accountStatus: AdminUserAccountStatus;
   restriction: ProductUserRestriction | null;
   lastSeenAt: Date | null;
@@ -34,6 +36,13 @@ const productUserSchema = new mongoose.Schema<ProductUserDocument>(
     name: { type: String, required: true },
     email: { type: String, required: true, index: true },
     role: { type: String, required: true, enum: ["USER", "ADMIN"], index: true },
+    accountVersion: {
+      type: String,
+      required: true,
+      enum: ["legacy", "product-v1"],
+      index: true,
+      default: "legacy",
+    },
     accountStatus: {
       type: String,
       required: true,

@@ -43,6 +43,7 @@ describe("createSyncAuthenticatedProductUserMiddleware", () => {
       id: "user-1",
       email: "user@example.com",
       role: "ADMIN",
+      accountVersion: "legacy",
     });
     expect(storedUser?.lastSeenAt).toBeInstanceOf(Date);
   });

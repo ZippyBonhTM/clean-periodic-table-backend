@@ -39,6 +39,7 @@ export default class InMemoryProductUserRepository implements ProductUserReposit
         name: input.identity.name,
         email: input.identity.email,
         role: input.forceAdmin ? "ADMIN" : input.defaultRole,
+        accountVersion: input.accountVersion ?? "legacy",
         accountStatus: "active",
         restriction: null,
         createdAt: now,
@@ -57,6 +58,7 @@ export default class InMemoryProductUserRepository implements ProductUserReposit
       name: input.identity.name,
       email: input.identity.email,
       role: input.forceAdmin ? "ADMIN" : existing.role,
+      accountVersion: existing.accountVersion ?? input.accountVersion ?? "legacy",
       updatedAt: now,
       lastSeenAt: input.touchLastSeenAt ?? existing.lastSeenAt,
       lastSeenSortAt: input.touchLastSeenAt ?? existing.lastSeenSortAt,
@@ -89,6 +91,7 @@ export default class InMemoryProductUserRepository implements ProductUserReposit
 
     const matching = [...this.records.values()]
       .filter((user) => input.role === undefined || input.role === null || input.role === "all" ? true : user.role === input.role)
+      .filter((user) => input.version === undefined || input.version === null || input.version === "all" ? true : user.accountVersion === input.version)
       .filter((user) => input.status === undefined || input.status === null || input.status === "all" ? true : user.accountStatus === input.status)
       .filter((user) => {
         if (regex === null) {

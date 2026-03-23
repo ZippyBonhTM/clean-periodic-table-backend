@@ -17,6 +17,7 @@ function mapDocument(document: StoredProductUserDocument): ProductUserRecord {
     name: document.name,
     email: document.email,
     role: document.role,
+    accountVersion: document.accountVersion ?? "legacy",
     accountStatus: document.accountStatus,
     restriction: document.restriction === null ? null : {
       reason: document.restriction.reason,
@@ -36,6 +37,10 @@ function buildBaseQuery(input: ProductUserListInput): FilterQuery<StoredProductU
 
   if (input.role !== undefined && input.role !== null && input.role !== "all") {
     query.role = input.role;
+  }
+
+  if (input.version !== undefined && input.version !== null && input.version !== "all") {
+    query.accountVersion = input.version;
   }
 
   if (input.status !== undefined && input.status !== null && input.status !== "all") {
@@ -66,6 +71,7 @@ export default class MongoProductUserRepository implements ProductUserRepository
         name: input.identity.name,
         email: input.identity.email,
         role: input.forceAdmin ? "ADMIN" : input.defaultRole,
+        accountVersion: input.accountVersion ?? "legacy",
         accountStatus: "active",
         restriction: null,
         lastSeenAt: touchedAt,
@@ -89,6 +95,7 @@ export default class MongoProductUserRepository implements ProductUserRepository
           name: input.identity.name,
           email: input.identity.email,
           role: input.forceAdmin ? "ADMIN" : existing.role,
+          accountVersion: existing.accountVersion ?? input.accountVersion ?? "legacy",
           updatedAt: now,
           ...(input.touchLastSeenAt !== undefined && input.touchLastSeenAt !== null
             ? {
@@ -121,6 +128,7 @@ export default class MongoProductUserRepository implements ProductUserRepository
           name: user.name,
           email: user.email,
           role: user.role,
+          accountVersion: user.accountVersion,
           accountStatus: user.accountStatus,
           restriction: user.restriction,
           createdAt: user.createdAt,
@@ -166,6 +174,7 @@ export default class MongoProductUserRepository implements ProductUserRepository
           Object.assign(query, { $and: [buildBaseQuery(input), cursorQuery] });
           delete query.$or;
           delete query.role;
+          delete query.accountVersion;
           delete query.accountStatus;
         } else {
           Object.assign(query, cursorQuery);

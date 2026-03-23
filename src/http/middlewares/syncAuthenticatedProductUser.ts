@@ -30,6 +30,7 @@ function createSyncAuthenticatedProductUserMiddleware({
           identity,
           defaultRole: "USER",
           forceAdmin: bootstrapAdminUserIds.has(identity.id),
+          accountVersion: "legacy",
           touchLastSeenAt: new Date(),
         });
       }
