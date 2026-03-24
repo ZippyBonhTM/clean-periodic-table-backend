@@ -1,16 +1,19 @@
 import { Router, type RequestHandler } from "express";
 
+import type ManageSavedArticles from "../../application/usecases/ManageSavedArticles.js";
 import type ListAllElements from "../../application/usecases/ListAllElements.js";
 import type ManageAdminUsers from "../../application/usecases/ManageAdminUsers.js";
 import type ManageUserMolecules from "../../application/usecases/ManageUserMolecules.js";
 import type { AppEnv } from "../../config/env.js";
 import { createAdminRoutes } from "./adminRoutes.js";
+import { createArticleRoutes } from "./articleRoutes.js";
 import { createElementsRoutes } from "./elementsRoutes.js";
 import { createHealthRoutes } from "./healthRoutes.js";
 import { createMoleculesRoutes } from "./moleculesRoutes.js";
 
 type CreateApiRouterInput = {
   appEnv: AppEnv;
+  manageSavedArticles?: ManageSavedArticles;
   listAllElements: ListAllElements;
   manageAdminUsers?: ManageAdminUsers;
   manageUserMolecules: ManageUserMolecules;
@@ -20,6 +23,7 @@ type CreateApiRouterInput = {
 
 function createApiRouter({
   appEnv,
+  manageSavedArticles,
   listAllElements,
   manageAdminUsers,
   manageUserMolecules,
@@ -38,6 +42,15 @@ function createApiRouter({
   router.use(createHealthRoutes(appEnv));
   router.use(createElementsRoutes(elementsRoutesInput));
   router.use(createMoleculesRoutes(moleculesRoutesInput));
+  if (manageSavedArticles !== undefined) {
+    router.use(
+      createArticleRoutes({
+        manageSavedArticles,
+        ...(authMiddleware !== undefined ? { authMiddleware } : {}),
+        ...(syncProductUserMiddleware !== undefined ? { syncProductUserMiddleware } : {}),
+      }),
+    );
+  }
   if (manageAdminUsers !== undefined) {
     router.use(
       createAdminRoutes({
