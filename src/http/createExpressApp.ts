@@ -1,5 +1,6 @@
 import express, { type Express, type RequestHandler } from "express";
 
+import type ManageSavedArticles from "../application/usecases/ManageSavedArticles.js";
 import type ListAllElements from "../application/usecases/ListAllElements.js";
 import type ManageAdminUsers from "../application/usecases/ManageAdminUsers.js";
 import type ManageUserMolecules from "../application/usecases/ManageUserMolecules.js";
@@ -10,6 +11,7 @@ import { createApiRouter } from "./routes/index.js";
 
 type CreateExpressAppInput = {
   appEnv: AppEnv;
+  manageSavedArticles?: ManageSavedArticles;
   listAllElements: ListAllElements;
   manageAdminUsers?: ManageAdminUsers;
   manageUserMolecules: ManageUserMolecules;
@@ -49,6 +51,7 @@ function readAllowedOrigins(rawValue: string | undefined): Set<string> {
 
 function createExpressApp({
   appEnv,
+  manageSavedArticles,
   listAllElements,
   manageAdminUsers,
   manageUserMolecules,
@@ -85,6 +88,7 @@ function createExpressApp({
   app.use(
     createApiRouter({
       appEnv,
+      ...(manageSavedArticles !== undefined ? { manageSavedArticles } : {}),
       listAllElements,
       ...(manageAdminUsers !== undefined ? { manageAdminUsers } : {}),
       manageUserMolecules,

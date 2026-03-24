@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import type { RequestHandler } from "express";
 
+import ManageSavedArticles from "./application/usecases/ManageSavedArticles.js";
 import ListAllElements from "./application/usecases/ListAllElements.js";
 import ManageAdminUsers from "./application/usecases/ManageAdminUsers.js";
 import ManageUserMolecules from "./application/usecases/ManageUserMolecules.js";
@@ -18,10 +19,12 @@ import HttpUserSessionRevoker from "./infrastructure/auth/HttpUserSessionRevoker
 import UnavailableAuthIdentityResolver from "./infrastructure/auth/UnavailableAuthIdentityResolver.js";
 import { connectMongo, disconnectMongo } from "./infrastructure/mongoose/connect.js";
 import MongoAdminAuditRepository from "./infrastructure/mongoose/repositories/MongoAdminAuditRepository.js";
+import MongoArticleRepository from "./infrastructure/mongoose/repositories/MongoArticleRepository.js";
 import MongoElementRepository from "./infrastructure/mongoose/repositories/MongoElementRepository.js";
 import MongoProductUserRepository from "./infrastructure/mongoose/repositories/MongoProductUserRepository.js";
 import MongoUserMoleculeRepository from "./infrastructure/mongoose/repositories/MongoUserMoleculeRepository.js";
 import InMemoryAdminAuditRepository from "./infrastructure/repositories/InMemoryAdminAuditRepository.js";
+import InMemoryArticleRepository from "./infrastructure/repositories/InMemoryArticleRepository.js";
 import InMemoryElementRepository from "./infrastructure/repositories/InMemoryElementRepository.js";
 import InMemoryProductUserRepository from "./infrastructure/repositories/InMemoryProductUserRepository.js";
 import InMemoryUserMoleculeRepository from "./infrastructure/repositories/InMemoryUserMoleculeRepository.js";
@@ -91,6 +94,9 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
   const adminAuditRepository = isMongoSource
     ? new MongoAdminAuditRepository()
     : new InMemoryAdminAuditRepository();
+  const articleRepository = isMongoSource
+    ? new MongoArticleRepository()
+    : new InMemoryArticleRepository();
   const userMoleculeRepository = isMongoSource
     ? new MongoUserMoleculeRepository()
     : new InMemoryUserMoleculeRepository();
@@ -115,6 +121,7 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
           serviceToken: appEnv.authInternalServiceToken,
         });
   const listAllElements = new ListAllElements(elementRepository);
+  const manageSavedArticles = new ManageSavedArticles(articleRepository);
   const manageUserMolecules = new ManageUserMolecules(userMoleculeRepository);
   const manageAdminUsers = new ManageAdminUsers(
     productUserRepository,
@@ -132,6 +139,7 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
   });
   const appInput = {
     appEnv,
+    manageSavedArticles,
     listAllElements,
     manageAdminUsers,
     manageUserMolecules,
