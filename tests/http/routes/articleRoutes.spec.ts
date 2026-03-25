@@ -5,6 +5,7 @@ import type AuthTokenValidator from "@/application/protocols/AuthTokenValidator.
 import ListAllElements from "@/application/usecases/ListAllElements.js";
 import ManagePublicArticles from "@/application/usecases/ManagePublicArticles.js";
 import ManageSavedArticles from "@/application/usecases/ManageSavedArticles.js";
+import ManageOwnedArticles from "@/application/usecases/ManageOwnedArticles.js";
 import ManageUserMolecules from "@/application/usecases/ManageUserMolecules.js";
 import type { ArticleRecord } from "@/domain/Article.js";
 import type { AppEnv } from "@/config/env.js";
@@ -79,6 +80,7 @@ function createArticleTestContext() {
     listAllElements: new ListAllElements(new InMemoryElementRepository()),
     managePublicArticles: new ManagePublicArticles(articleRepository),
     manageSavedArticles: new ManageSavedArticles(articleRepository),
+    manageOwnedArticles: new ManageOwnedArticles(articleRepository),
     manageUserMolecules: new ManageUserMolecules(new InMemoryUserMoleculeRepository()),
     authMiddleware: makeAuthMiddleware(),
   });
@@ -231,6 +233,74 @@ describe("article routes", () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual([{ id: "chem", name: "chemistry" }]);
+  });
+
+  it("lists the current user's owned articles with cursor pagination", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-1",
+        slug: "article-1",
+        author: {
+          id: "user-1",
+          displayName: "User One",
+          username: "user1",
+          profileImage: null,
+        },
+        updatedAt: new Date("2026-03-20T10:00:00.000Z"),
+      }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-2",
+        slug: "article-2",
+        author: {
+          id: "user-1",
+          displayName: "User One",
+          username: "user1",
+          profileImage: null,
+        },
+        status: "draft",
+        visibility: "private",
+        updatedAt: new Date("2026-03-21T10:00:00.000Z"),
+      }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-3",
+        slug: "article-3",
+        author: {
+          id: "user-2",
+          displayName: "User Two",
+          username: "user2",
+          profileImage: null,
+        },
+        updatedAt: new Date("2026-03-22T10:00:00.000Z"),
+      }),
+    );
+
+    const firstPage = await request(app)
+      .get("/api/v1/me/articles?limit=1")
+      .set("Authorization", "Bearer user-1");
+
+    expect(firstPage.status).toBe(200);
+    expect(firstPage.body.items).toHaveLength(1);
+    expect(firstPage.body.items[0]).toMatchObject({
+      id: "article-2",
+      status: "draft",
+      visibility: "private",
+    });
+    expect(typeof firstPage.body.nextCursor).toBe("string");
+
+    const secondPage = await request(app)
+      .get(`/api/v1/me/articles?limit=1&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`)
+      .set("Authorization", "Bearer user-1");
+
+    expect(secondPage.status).toBe(200);
+    expect(secondPage.body.items).toHaveLength(1);
+    expect(secondPage.body.items[0]).toMatchObject({ id: "article-1" });
+    expect(secondPage.body.nextCursor).toBeNull();
   });
 
   it("saves a public article and lists it in the current user library", async () => {

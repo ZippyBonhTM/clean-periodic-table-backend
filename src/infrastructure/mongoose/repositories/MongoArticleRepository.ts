@@ -2,6 +2,7 @@ import type { PipelineStage } from "mongoose";
 
 import type ArticleRepository from "../../../application/protocols/ArticleRepository.js";
 import type {
+  ListOwnedArticlesInput,
   ListPublicArticlesByHashtagInput,
   ListPublicArticlesInput,
   ListPublicHashtagsInput,
@@ -377,6 +378,42 @@ export default class MongoArticleRepository implements ArticleRepository {
       id: entry.id,
       name: entry.name,
     }));
+  }
+
+  async listOwnedArticles(input: ListOwnedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>> {
+    const limit = clampPageSize(input.limit);
+    const cursor = decodeCursor(input.cursor);
+    const match: Record<string, unknown> = {
+      "author.id": input.userId,
+    };
+
+    if (cursor !== null) {
+      const cursorDate = new Date(cursor.value);
+
+      if (!Number.isNaN(cursorDate.getTime())) {
+        match.$or = [
+          { updatedAt: { $lt: cursorDate } },
+          { updatedAt: cursorDate, id: { $lt: cursor.id } },
+        ];
+      }
+    }
+
+    const documents = (await ArticleModel.find(match, { __v: 0, _id: 0 })
+      .sort({ updatedAt: -1, id: -1 })
+      .limit(limit + 1)
+      .lean()
+      .exec()) as StoredArticleDocument[];
+    const pageItems = documents.slice(0, limit);
+    const lastItem = pageItems[pageItems.length - 1];
+
+    return {
+      items: pageItems.map((entry) => mapArticleSummary(entry)),
+      nextCursor:
+        documents.length > limit && lastItem !== undefined
+          ? encodeCursor({ value: new Date(lastItem.updatedAt).toISOString(), id: lastItem.id })
+          : null,
+      prevCursor: null,
+    };
   }
 
   async listSavedArticles(input: ListSavedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>> {

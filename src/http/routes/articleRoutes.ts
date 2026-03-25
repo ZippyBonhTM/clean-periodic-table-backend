@@ -2,12 +2,14 @@ import { Router, type Request, type RequestHandler } from "express";
 
 import type ManagePublicArticles from "../../application/usecases/ManagePublicArticles.js";
 import type ManageSavedArticles from "../../application/usecases/ManageSavedArticles.js";
+import type ManageOwnedArticles from "../../application/usecases/ManageOwnedArticles.js";
 import type { ArticleDetail, ArticleFeedItem, ArticleSummary } from "../../domain/Article.js";
 import { AppError, isAppError } from "../errors/AppError.js";
 
 type CreateArticleRoutesInput = {
   managePublicArticles?: ManagePublicArticles;
   manageSavedArticles?: ManageSavedArticles;
+  manageOwnedArticles?: ManageOwnedArticles;
   authMiddleware?: RequestHandler;
   syncProductUserMiddleware?: RequestHandler;
 };
@@ -176,6 +178,7 @@ function toArticleDetailResponse(article: ArticleDetail) {
 function createArticleRoutes({
   managePublicArticles,
   manageSavedArticles,
+  manageOwnedArticles,
   authMiddleware,
   syncProductUserMiddleware,
 }: CreateArticleRoutesInput): Router {
@@ -318,6 +321,39 @@ function createArticleRoutes({
             code: "LIST_ARTICLE_HASHTAGS_FAILED",
             message: error instanceof Error ? error.message : String(error),
             publicMessage: "Internal error while listing article hashtags.",
+            layer: "application",
+            cause: error,
+          }),
+        );
+      }
+    });
+  }
+
+  if (manageOwnedArticles !== undefined) {
+    router.get("/api/v1/me/articles", ...authHandlers, async (request, response, next) => {
+      try {
+        const result = await manageOwnedArticles.listOwnedArticles({
+          userId: getAuthenticatedUserId(request),
+          cursor: parseOptionalString(request.query.cursor),
+          limit: parseLimit(request.query.limit),
+        });
+
+        response.status(200).json({
+          items: result.items.map((article) => toArticleSummaryResponse(article)),
+          nextCursor: result.nextCursor,
+        });
+      } catch (error: unknown) {
+        if (isAppError(error)) {
+          next(error);
+          return;
+        }
+
+        next(
+          new AppError({
+            statusCode: 500,
+            code: "LIST_OWNED_ARTICLES_FAILED",
+            message: error instanceof Error ? error.message : String(error),
+            publicMessage: "Internal error while listing your articles.",
             layer: "application",
             cause: error,
           }),
