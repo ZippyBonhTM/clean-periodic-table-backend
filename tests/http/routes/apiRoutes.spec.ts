@@ -2,6 +2,7 @@ import express from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 
+import ManagePublicArticles from "@/application/usecases/ManagePublicArticles.js";
 import ManageSavedArticles from "@/application/usecases/ManageSavedArticles.js";
 import ListAllElements from "@/application/usecases/ListAllElements.js";
 import type ElementRepository from "@/application/protocols/ElementRepository.js";
@@ -40,13 +41,18 @@ function makeManageSavedArticles(): ManageSavedArticles {
   return new ManageSavedArticles(new InMemoryArticleRepository());
 }
 
+function makeManagePublicArticles(): ManagePublicArticles {
+  return new ManagePublicArticles(new InMemoryArticleRepository());
+}
+
 describe("createApiRouter", () => {
-  it("registers /health, /elements, /molecules, and article saved routes", async () => {
+  it("registers /health, /elements, /molecules, and article routes", async () => {
     const router = createApiRouter({
       appEnv,
       listAllElements: makeListAllElements({
         getAllElements: vi.fn().mockResolvedValue([makeElement({ symbol: "H" })]),
       }),
+      managePublicArticles: makeManagePublicArticles(),
       manageSavedArticles: makeManageSavedArticles(),
       manageUserMolecules: makeManageUserMolecules(),
     });
@@ -56,6 +62,7 @@ describe("createApiRouter", () => {
     const health = await request(app).get("/health");
     const elements = await request(app).get("/elements");
     const molecules = await request(app).get("/molecules");
+    const feed = await request(app).get("/api/v1/feed");
     const savedArticles = await request(app).get("/api/v1/me/articles/saved");
 
     expect(health.status).toBe(200);
@@ -68,6 +75,8 @@ describe("createApiRouter", () => {
     expect(elements.body[0]).toMatchObject({ symbol: "H" });
     expect(molecules.status).toBe(503);
     expect(molecules.body).toEqual({ message: "Molecule persistence requires authentication." });
+    expect(feed.status).toBe(200);
+    expect(feed.body).toEqual({ items: [], nextCursor: null });
     expect(savedArticles.status).toBe(503);
     expect(savedArticles.body).toEqual({ message: "Article routes require authentication." });
   });

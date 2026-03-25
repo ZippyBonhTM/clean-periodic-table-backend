@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import type { RequestHandler } from "express";
 
+import ManagePublicArticles from "./application/usecases/ManagePublicArticles.js";
 import ManageSavedArticles from "./application/usecases/ManageSavedArticles.js";
 import ListAllElements from "./application/usecases/ListAllElements.js";
 import ManageAdminUsers from "./application/usecases/ManageAdminUsers.js";
@@ -121,6 +122,7 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
           serviceToken: appEnv.authInternalServiceToken,
         });
   const listAllElements = new ListAllElements(elementRepository);
+  const managePublicArticles = new ManagePublicArticles(articleRepository);
   const manageSavedArticles = new ManageSavedArticles(articleRepository);
   const manageUserMolecules = new ManageUserMolecules(userMoleculeRepository);
   const manageAdminUsers = new ManageAdminUsers(
@@ -139,6 +141,7 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
   });
   const appInput = {
     appEnv,
+    managePublicArticles,
     manageSavedArticles,
     listAllElements,
     manageAdminUsers,

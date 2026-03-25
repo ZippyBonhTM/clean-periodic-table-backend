@@ -29,6 +29,14 @@ export type ArticleSummary = {
   publishedAt: Date | null;
 };
 
+export type ArticleFeedItem = ArticleSummary & {
+  relevanceScore: number | null;
+};
+
+export type ArticleDetail = ArticleSummary & {
+  markdownSource: string;
+};
+
 export type ArticleRecord = ArticleSummary & {
   markdownSource: string;
   saveCount: number;
