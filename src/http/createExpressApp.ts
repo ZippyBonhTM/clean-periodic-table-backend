@@ -1,5 +1,6 @@
 import express, { type Express, type RequestHandler } from "express";
 
+import type ManageEditableArticles from "../application/usecases/ManageEditableArticles.js";
 import type ManagePublicArticles from "../application/usecases/ManagePublicArticles.js";
 import type ManageSavedArticles from "../application/usecases/ManageSavedArticles.js";
 import type ManageOwnedArticles from "../application/usecases/ManageOwnedArticles.js";
@@ -13,6 +14,7 @@ import { createApiRouter } from "./routes/index.js";
 
 type CreateExpressAppInput = {
   appEnv: AppEnv;
+  manageEditableArticles?: ManageEditableArticles;
   managePublicArticles?: ManagePublicArticles;
   manageSavedArticles?: ManageSavedArticles;
   manageOwnedArticles?: ManageOwnedArticles;
@@ -55,6 +57,7 @@ function readAllowedOrigins(rawValue: string | undefined): Set<string> {
 
 function createExpressApp({
   appEnv,
+  manageEditableArticles,
   managePublicArticles,
   manageSavedArticles,
   manageOwnedArticles,
@@ -94,6 +97,7 @@ function createExpressApp({
   app.use(
     createApiRouter({
       appEnv,
+      ...(manageEditableArticles !== undefined ? { manageEditableArticles } : {}),
       ...(managePublicArticles !== undefined ? { managePublicArticles } : {}),
       ...(manageSavedArticles !== undefined ? { manageSavedArticles } : {}),
       ...(manageOwnedArticles !== undefined ? { manageOwnedArticles } : {}),

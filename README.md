@@ -39,6 +39,9 @@ Os endpoints abaixo exigem `Authorization: Bearer <token>` e dependem de `AUTH_R
 - `POST /molecules`
 - `PUT /molecules/:moleculeId`
 - `DELETE /molecules/:moleculeId`
+- `POST /api/v1/articles`
+- `GET /api/v1/articles/:articleId`
+- `PUT /api/v1/articles/:articleId`
 - `GET /api/v1/me/articles`
 - `GET /api/v1/me/articles/saved`
 - `POST /api/v1/articles/:articleId/save`

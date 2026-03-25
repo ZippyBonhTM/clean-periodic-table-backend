@@ -2,6 +2,7 @@ import type { PipelineStage } from "mongoose";
 
 import type ArticleRepository from "../../../application/protocols/ArticleRepository.js";
 import type {
+  CreateOwnedArticleDraftInput,
   ListOwnedArticlesInput,
   ListPublicArticlesByHashtagInput,
   ListPublicArticlesInput,
@@ -9,6 +10,7 @@ import type {
   ListSavedArticlesInput,
   SaveArticleForUserInput,
   SearchPublicArticlesInput,
+  UpdateOwnedArticleInput,
 } from "../../../application/protocols/ArticleRepository.js";
 import type {
   ArticleCursorPage,
@@ -185,6 +187,28 @@ export default class MongoArticleRepository implements ArticleRepository {
       .exec()) as StoredArticleDetailDocument | null;
 
     return article === null ? null : mapArticleDetail(article);
+  }
+
+  async findOwnedArticleById(userId: string, articleId: string): Promise<ArticleDetail | null> {
+    const article = (await ArticleModel.findOne(
+      { id: articleId, "author.id": userId },
+      { __v: 0, _id: 0 },
+    )
+      .lean()
+      .exec()) as StoredArticleDetailDocument | null;
+
+    return article === null ? null : mapArticleDetail(article);
+  }
+
+  async isArticleSlugAvailable(slug: string, excludeArticleId?: string | null): Promise<boolean> {
+    const existingArticle = await ArticleModel.exists({
+      slug,
+      ...(excludeArticleId !== undefined && excludeArticleId !== null
+        ? { id: { $ne: excludeArticleId } }
+        : {}),
+    }).exec();
+
+    return existingArticle === null;
   }
 
   async listPublicFeed(input: ListPublicArticlesInput): Promise<ArticleCursorPage<ArticleFeedItem>> {
@@ -414,6 +438,50 @@ export default class MongoArticleRepository implements ArticleRepository {
           : null,
       prevCursor: null,
     };
+  }
+
+  async createOwnedArticleDraft(input: CreateOwnedArticleDraftInput): Promise<ArticleDetail> {
+    const document = await ArticleModel.create({
+      id: input.articleId,
+      title: input.title,
+      slug: input.slug,
+      excerpt: input.excerpt,
+      markdownSource: input.markdownSource,
+      visibility: input.visibility,
+      status: "draft",
+      coverImage: input.coverImage,
+      hashtags: input.hashtags,
+      author: input.author,
+      saveCount: 0,
+      publishedAt: null,
+    });
+
+    return mapArticleDetail(document.toObject() as StoredArticleDetailDocument);
+  }
+
+  async updateOwnedArticle(input: UpdateOwnedArticleInput): Promise<ArticleDetail | null> {
+    const document = (await ArticleModel.findOneAndUpdate(
+      { id: input.articleId, "author.id": input.userId },
+      {
+        $set: {
+          title: input.title,
+          slug: input.slug,
+          excerpt: input.excerpt,
+          markdownSource: input.markdownSource,
+          visibility: input.visibility,
+          coverImage: input.coverImage,
+          hashtags: input.hashtags,
+        },
+      },
+      {
+        new: true,
+        projection: { __v: 0, _id: 0 },
+      },
+    )
+      .lean()
+      .exec()) as StoredArticleDetailDocument | null;
+
+    return document === null ? null : mapArticleDetail(document);
   }
 
   async listSavedArticles(input: ListSavedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>> {

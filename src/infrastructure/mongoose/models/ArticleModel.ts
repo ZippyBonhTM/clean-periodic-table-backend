@@ -45,10 +45,10 @@ const articleAuthorSchema = new mongoose.Schema<ArticleAuthor>(
 const articleSchema = new mongoose.Schema<ArticleDocument>(
   {
     id: { type: String, required: true, unique: true, index: true },
-    title: { type: String, required: true },
+    title: { type: String, default: "" },
     slug: { type: String, required: true, unique: true, index: true },
     excerpt: { type: String, required: true, default: "" },
-    markdownSource: { type: String, required: true, default: "" },
+    markdownSource: { type: String, default: "" },
     visibility: { type: String, required: true, enum: ["public", "private"], index: true },
     status: { type: String, required: true, enum: ["draft", "published", "archived"], index: true },
     coverImage: { type: String, default: null },

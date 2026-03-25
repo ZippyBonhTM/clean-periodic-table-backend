@@ -1,8 +1,10 @@
 import type {
   ArticleCursorPage,
-  ArticleDetail,
-  ArticleFeedItem,
   ArticleHashtag,
+  ArticleDetail,
+  ArticleAuthor,
+  ArticleVisibility,
+  ArticleFeedItem,
   ArticleSummary,
 } from "../../domain/Article.js";
 
@@ -42,9 +44,36 @@ export type SaveArticleForUserInput = {
   savedAt?: Date;
 };
 
+export type CreateOwnedArticleDraftInput = {
+  userId: string;
+  articleId: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  markdownSource: string;
+  visibility: ArticleVisibility;
+  coverImage: string | null;
+  hashtags: ArticleHashtag[];
+  author: ArticleAuthor;
+};
+
+export type UpdateOwnedArticleInput = {
+  userId: string;
+  articleId: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  markdownSource: string;
+  visibility: ArticleVisibility;
+  coverImage: string | null;
+  hashtags: ArticleHashtag[];
+};
+
 export default interface ArticleRepository {
   findPublishedPublicById(articleId: string): Promise<ArticleSummary | null>;
   findPublishedPublicBySlug(slug: string): Promise<ArticleDetail | null>;
+  findOwnedArticleById(userId: string, articleId: string): Promise<ArticleDetail | null>;
+  isArticleSlugAvailable(slug: string, excludeArticleId?: string | null): Promise<boolean>;
   listPublicFeed(input: ListPublicArticlesInput): Promise<ArticleCursorPage<ArticleFeedItem>>;
   listPublicFeedByHashtag(
     input: ListPublicArticlesByHashtagInput,
@@ -55,5 +84,7 @@ export default interface ArticleRepository {
   listPublicHashtags(input: ListPublicHashtagsInput): Promise<ArticleHashtag[]>;
   listOwnedArticles(input: ListOwnedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>>;
   listSavedArticles(input: ListSavedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>>;
+  createOwnedArticleDraft(input: CreateOwnedArticleDraftInput): Promise<ArticleDetail>;
+  updateOwnedArticle(input: UpdateOwnedArticleInput): Promise<ArticleDetail | null>;
   saveArticleForUser(input: SaveArticleForUserInput): Promise<void>;
 }

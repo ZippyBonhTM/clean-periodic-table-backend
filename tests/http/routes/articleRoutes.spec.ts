@@ -2,6 +2,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 
 import type AuthTokenValidator from "@/application/protocols/AuthTokenValidator.js";
+import ManageEditableArticles from "@/application/usecases/ManageEditableArticles.js";
 import ListAllElements from "@/application/usecases/ListAllElements.js";
 import ManagePublicArticles from "@/application/usecases/ManagePublicArticles.js";
 import ManageSavedArticles from "@/application/usecases/ManageSavedArticles.js";
@@ -78,6 +79,7 @@ function createArticleTestContext() {
   const app = createExpressApp({
     appEnv,
     listAllElements: new ListAllElements(new InMemoryElementRepository()),
+    manageEditableArticles: new ManageEditableArticles(articleRepository),
     managePublicArticles: new ManagePublicArticles(articleRepository),
     manageSavedArticles: new ManageSavedArticles(articleRepository),
     manageOwnedArticles: new ManageOwnedArticles(articleRepository),
@@ -301,6 +303,144 @@ describe("article routes", () => {
     expect(secondPage.body.items).toHaveLength(1);
     expect(secondPage.body.items[0]).toMatchObject({ id: "article-1" });
     expect(secondPage.body.nextCursor).toBeNull();
+  });
+
+  it("creates a draft for the authenticated user", async () => {
+    const { app } = createArticleTestContext();
+
+    const response = await request(app)
+      .post("/api/v1/articles")
+      .set("Authorization", "Bearer user-1")
+      .send({
+        title: "Chemistry draft",
+        markdown_source: "# Hello",
+        visibility: "private",
+        hashtags: ["chemistry", "orbitals"],
+        excerpt: "Draft excerpt",
+        cover_image: null,
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body).toMatchObject({
+      id: expect.any(String),
+      title: "Chemistry draft",
+      slug: "chemistry-draft",
+      status: "draft",
+      visibility: "private",
+      markdownSource: "# Hello",
+      excerpt: "Draft excerpt",
+      hashtags: [
+        { id: "chemistry", name: "chemistry" },
+        { id: "orbitals", name: "orbitals" },
+      ],
+      author: {
+        id: "user-1",
+        displayName: null,
+        username: null,
+        profileImage: null,
+      },
+    });
+  });
+
+  it("loads an owned draft by article id", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "draft-1",
+        slug: "draft-1",
+        status: "draft",
+        visibility: "private",
+        author: {
+          id: "user-1",
+          displayName: null,
+          username: null,
+          profileImage: null,
+        },
+      }),
+    );
+
+    const response = await request(app)
+      .get("/api/v1/articles/draft-1")
+      .set("Authorization", "Bearer user-1");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: "draft-1",
+      slug: "draft-1",
+      status: "draft",
+      visibility: "private",
+    });
+  });
+
+  it("updates an owned draft by article id", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "draft-1",
+        slug: "old-title",
+        title: "Old title",
+        markdownSource: "# Old",
+        status: "draft",
+        visibility: "private",
+        author: {
+          id: "user-1",
+          displayName: null,
+          username: null,
+          profileImage: null,
+        },
+      }),
+    );
+
+    const response = await request(app)
+      .put("/api/v1/articles/draft-1")
+      .set("Authorization", "Bearer user-1")
+      .send({
+        title: "Updated title",
+        markdown_source: "# Updated",
+        visibility: "public",
+        hashtags: ["updated"],
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: "draft-1",
+      title: "Updated title",
+      slug: "updated-title",
+      markdownSource: "# Updated",
+      visibility: "public",
+      hashtags: [{ id: "updated", name: "updated" }],
+    });
+  });
+
+  it("returns 404 when loading another user's draft", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "draft-1",
+        slug: "draft-1",
+        status: "draft",
+        visibility: "private",
+        author: {
+          id: "user-2",
+          displayName: null,
+          username: null,
+          profileImage: null,
+        },
+      }),
+    );
+
+    const response = await request(app)
+      .get("/api/v1/articles/draft-1")
+      .set("Authorization", "Bearer user-1");
+
+    expect(response.status).toBe(404);
+    expect(response.body.error).toMatchObject({
+      code: "ARTICLE_NOT_FOUND",
+      message: "Requested article does not exist.",
+    });
   });
 
   it("saves a public article and lists it in the current user library", async () => {
