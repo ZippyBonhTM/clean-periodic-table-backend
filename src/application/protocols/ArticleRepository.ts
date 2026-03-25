@@ -30,6 +30,12 @@ export type ListSavedArticlesInput = {
   limit?: number;
 };
 
+export type ListOwnedArticlesInput = {
+  userId: string;
+  cursor?: string | null;
+  limit?: number;
+};
+
 export type SaveArticleForUserInput = {
   userId: string;
   articleId: string;
@@ -47,6 +53,7 @@ export default interface ArticleRepository {
     input: SearchPublicArticlesInput,
   ): Promise<ArticleCursorPage<ArticleFeedItem>>;
   listPublicHashtags(input: ListPublicHashtagsInput): Promise<ArticleHashtag[]>;
+  listOwnedArticles(input: ListOwnedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>>;
   listSavedArticles(input: ListSavedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>>;
   saveArticleForUser(input: SaveArticleForUserInput): Promise<void>;
 }

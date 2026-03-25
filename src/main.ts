@@ -5,6 +5,7 @@ import type { RequestHandler } from "express";
 
 import ManagePublicArticles from "./application/usecases/ManagePublicArticles.js";
 import ManageSavedArticles from "./application/usecases/ManageSavedArticles.js";
+import ManageOwnedArticles from "./application/usecases/ManageOwnedArticles.js";
 import ListAllElements from "./application/usecases/ListAllElements.js";
 import ManageAdminUsers from "./application/usecases/ManageAdminUsers.js";
 import ManageUserMolecules from "./application/usecases/ManageUserMolecules.js";
@@ -124,6 +125,7 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
   const listAllElements = new ListAllElements(elementRepository);
   const managePublicArticles = new ManagePublicArticles(articleRepository);
   const manageSavedArticles = new ManageSavedArticles(articleRepository);
+  const manageOwnedArticles = new ManageOwnedArticles(articleRepository);
   const manageUserMolecules = new ManageUserMolecules(userMoleculeRepository);
   const manageAdminUsers = new ManageAdminUsers(
     productUserRepository,
@@ -143,6 +145,7 @@ async function bootstrap(appEnv: AppEnv = env): Promise<void> {
     appEnv,
     managePublicArticles,
     manageSavedArticles,
+    manageOwnedArticles,
     listAllElements,
     manageAdminUsers,
     manageUserMolecules,

@@ -2,6 +2,7 @@ import { Router, type RequestHandler } from "express";
 
 import type ManagePublicArticles from "../../application/usecases/ManagePublicArticles.js";
 import type ManageSavedArticles from "../../application/usecases/ManageSavedArticles.js";
+import type ManageOwnedArticles from "../../application/usecases/ManageOwnedArticles.js";
 import type ListAllElements from "../../application/usecases/ListAllElements.js";
 import type ManageAdminUsers from "../../application/usecases/ManageAdminUsers.js";
 import type ManageUserMolecules from "../../application/usecases/ManageUserMolecules.js";
@@ -16,6 +17,7 @@ type CreateApiRouterInput = {
   appEnv: AppEnv;
   managePublicArticles?: ManagePublicArticles;
   manageSavedArticles?: ManageSavedArticles;
+  manageOwnedArticles?: ManageOwnedArticles;
   listAllElements: ListAllElements;
   manageAdminUsers?: ManageAdminUsers;
   manageUserMolecules: ManageUserMolecules;
@@ -27,6 +29,7 @@ function createApiRouter({
   appEnv,
   managePublicArticles,
   manageSavedArticles,
+  manageOwnedArticles,
   listAllElements,
   manageAdminUsers,
   manageUserMolecules,
@@ -45,11 +48,16 @@ function createApiRouter({
   router.use(createHealthRoutes(appEnv));
   router.use(createElementsRoutes(elementsRoutesInput));
   router.use(createMoleculesRoutes(moleculesRoutesInput));
-  if (managePublicArticles !== undefined || manageSavedArticles !== undefined) {
+  if (
+    managePublicArticles !== undefined ||
+    manageSavedArticles !== undefined ||
+    manageOwnedArticles !== undefined
+  ) {
     router.use(
       createArticleRoutes({
         ...(managePublicArticles !== undefined ? { managePublicArticles } : {}),
         ...(manageSavedArticles !== undefined ? { manageSavedArticles } : {}),
+        ...(manageOwnedArticles !== undefined ? { manageOwnedArticles } : {}),
         ...(authMiddleware !== undefined ? { authMiddleware } : {}),
         ...(syncProductUserMiddleware !== undefined ? { syncProductUserMiddleware } : {}),
       }),

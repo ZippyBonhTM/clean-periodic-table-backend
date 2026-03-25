@@ -1,5 +1,6 @@
 import type ArticleRepository from "../../application/protocols/ArticleRepository.js";
 import type {
+  ListOwnedArticlesInput,
   ListPublicArticlesByHashtagInput,
   ListPublicArticlesInput,
   ListPublicHashtagsInput,
@@ -71,6 +72,16 @@ function compareSaveRecords(first: SaveRecord, second: SaveRecord): number {
 
 function compareFeedArticles(first: ArticleRecord, second: ArticleRecord): number {
   const dateDiff = getArticleOrderDate(second).getTime() - getArticleOrderDate(first).getTime();
+
+  if (dateDiff !== 0) {
+    return dateDiff;
+  }
+
+  return second.id.localeCompare(first.id);
+}
+
+function compareOwnedArticles(first: ArticleRecord, second: ArticleRecord): number {
+  const dateDiff = second.updatedAt.getTime() - first.updatedAt.getTime();
 
   if (dateDiff !== 0) {
     return dateDiff;
@@ -314,6 +325,40 @@ export default class InMemoryArticleRepository implements ArticleRepository {
       })
       .slice(0, limit)
       .map((entry) => entry.hashtag);
+  }
+
+  async listOwnedArticles(input: ListOwnedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>> {
+    const limit = clampPageSize(input.limit);
+    const cursor = decodeCursor(input.cursor);
+    const ownedArticles = [...this.articles.values()]
+      .filter((article) => article.author.id === input.userId)
+      .sort(compareOwnedArticles);
+
+    const pagedArticles =
+      cursor === null
+        ? ownedArticles
+        : ownedArticles.filter((article) => {
+            const timestamp = article.updatedAt.toISOString();
+
+            if (timestamp === cursor.value) {
+              return article.id.localeCompare(cursor.id) < 0;
+            }
+
+            return timestamp.localeCompare(cursor.value) < 0;
+          });
+
+    const items = pagedArticles.slice(0, limit + 1);
+    const pageItems = items.slice(0, limit);
+    const lastArticle = pageItems[pageItems.length - 1];
+
+    return {
+      items: pageItems.map((article) => cloneArticleSummary(article)),
+      nextCursor:
+        items.length > limit && lastArticle !== undefined
+          ? encodeCursor({ value: lastArticle.updatedAt.toISOString(), id: lastArticle.id })
+          : null,
+      prevCursor: null,
+    };
   }
 
   async listSavedArticles(input: ListSavedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>> {
