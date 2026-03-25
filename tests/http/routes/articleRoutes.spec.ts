@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type AuthTokenValidator from "@/application/protocols/AuthTokenValidator.js";
 import ListAllElements from "@/application/usecases/ListAllElements.js";
+import ManagePublicArticles from "@/application/usecases/ManagePublicArticles.js";
 import ManageSavedArticles from "@/application/usecases/ManageSavedArticles.js";
 import ManageUserMolecules from "@/application/usecases/ManageUserMolecules.js";
 import type { ArticleRecord } from "@/domain/Article.js";
@@ -76,6 +77,7 @@ function createArticleTestContext() {
   const app = createExpressApp({
     appEnv,
     listAllElements: new ListAllElements(new InMemoryElementRepository()),
+    managePublicArticles: new ManagePublicArticles(articleRepository),
     manageSavedArticles: new ManageSavedArticles(articleRepository),
     manageUserMolecules: new ManageUserMolecules(new InMemoryUserMoleculeRepository()),
     authMiddleware: makeAuthMiddleware(),
@@ -88,6 +90,149 @@ function createArticleTestContext() {
 }
 
 describe("article routes", () => {
+  it("lists the public global feed with cursor pagination", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({ id: "article-1", slug: "article-1", publishedAt: new Date("2026-03-21T10:00:00.000Z") }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({ id: "article-2", slug: "article-2", publishedAt: new Date("2026-03-22T10:00:00.000Z") }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({ id: "article-3", slug: "article-3", publishedAt: new Date("2026-03-23T10:00:00.000Z") }),
+    );
+
+    const firstPage = await request(app).get("/api/v1/feed?limit=2");
+
+    expect(firstPage.status).toBe(200);
+    expect(firstPage.body.items).toHaveLength(2);
+    expect(firstPage.body.items[0]).toMatchObject({ id: "article-3", relevanceScore: null });
+    expect(firstPage.body.items[1]).toMatchObject({ id: "article-2", relevanceScore: null });
+    expect(typeof firstPage.body.nextCursor).toBe("string");
+
+    const secondPage = await request(app).get(
+      `/api/v1/feed?limit=2&cursor=${encodeURIComponent(firstPage.body.nextCursor)}`,
+    );
+
+    expect(secondPage.status).toBe(200);
+    expect(secondPage.body.items).toHaveLength(1);
+    expect(secondPage.body.items[0]).toMatchObject({ id: "article-1" });
+    expect(secondPage.body.nextCursor).toBeNull();
+  });
+
+  it("filters the public feed by hashtag", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-1",
+        slug: "article-1",
+        hashtags: [{ id: "chem", name: "chemistry" }],
+      }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-2",
+        slug: "article-2",
+        hashtags: [{ id: "math", name: "math" }],
+      }),
+    );
+
+    const response = await request(app).get("/api/v1/feed/hashtag/chemistry");
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0]).toMatchObject({ id: "article-1" });
+  });
+
+  it("searches public articles across title, excerpt, markdown, and hashtags", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-1",
+        slug: "article-1",
+        title: "Quantum chemistry notes",
+      }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-2",
+        slug: "article-2",
+        excerpt: "A short bridge into spectroscopy",
+      }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-3",
+        slug: "article-3",
+        markdownSource: "Detailed guide about spectroscopy calibration",
+      }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-4",
+        slug: "article-4",
+        hashtags: [{ id: "spec", name: "spectroscopy" }],
+      }),
+    );
+
+    const response = await request(app).get("/api/v1/search?q=spectroscopy");
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toHaveLength(3);
+    expect(response.body.items.every((item: { relevanceScore: number | null }) => item.relevanceScore !== null)).toBe(true);
+  });
+
+  it("returns published public article detail by slug", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-1",
+        slug: "orbitals-for-beginners",
+        markdownSource: "# Orbitals",
+      }),
+    );
+
+    const response = await request(app).get("/api/v1/articles/by-slug/orbitals-for-beginners");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id: "article-1",
+      slug: "orbitals-for-beginners",
+      markdownSource: "# Orbitals",
+    });
+  });
+
+  it("lists public hashtags ordered by usage", async () => {
+    const { app, articleRepository } = createArticleTestContext();
+
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-1",
+        slug: "article-1",
+        hashtags: [
+          { id: "chem", name: "chemistry" },
+          { id: "spec", name: "spectroscopy" },
+        ],
+      }),
+    );
+    articleRepository.seedArticle(
+      makeArticle({
+        id: "article-2",
+        slug: "article-2",
+        hashtags: [{ id: "chem", name: "chemistry" }],
+      }),
+    );
+
+    const response = await request(app).get("/api/v1/hashtags?q=chem");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([{ id: "chem", name: "chemistry" }]);
+  });
+
   it("saves a public article and lists it in the current user library", async () => {
     const { app, articleRepository } = createArticleTestContext();
 

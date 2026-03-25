@@ -1,4 +1,28 @@
-import type { ArticleCursorPage, ArticleSummary } from "../../domain/Article.js";
+import type {
+  ArticleCursorPage,
+  ArticleDetail,
+  ArticleFeedItem,
+  ArticleHashtag,
+  ArticleSummary,
+} from "../../domain/Article.js";
+
+export type ListPublicArticlesInput = {
+  cursor?: string | null;
+  limit?: number;
+};
+
+export type ListPublicArticlesByHashtagInput = ListPublicArticlesInput & {
+  hashtag: string;
+};
+
+export type SearchPublicArticlesInput = ListPublicArticlesInput & {
+  query: string;
+};
+
+export type ListPublicHashtagsInput = {
+  query?: string | null;
+  limit?: number;
+};
 
 export type ListSavedArticlesInput = {
   userId: string;
@@ -14,6 +38,15 @@ export type SaveArticleForUserInput = {
 
 export default interface ArticleRepository {
   findPublishedPublicById(articleId: string): Promise<ArticleSummary | null>;
+  findPublishedPublicBySlug(slug: string): Promise<ArticleDetail | null>;
+  listPublicFeed(input: ListPublicArticlesInput): Promise<ArticleCursorPage<ArticleFeedItem>>;
+  listPublicFeedByHashtag(
+    input: ListPublicArticlesByHashtagInput,
+  ): Promise<ArticleCursorPage<ArticleFeedItem>>;
+  searchPublishedPublicArticles(
+    input: SearchPublicArticlesInput,
+  ): Promise<ArticleCursorPage<ArticleFeedItem>>;
+  listPublicHashtags(input: ListPublicHashtagsInput): Promise<ArticleHashtag[]>;
   listSavedArticles(input: ListSavedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>>;
   saveArticleForUser(input: SaveArticleForUserInput): Promise<void>;
 }

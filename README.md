@@ -24,6 +24,11 @@ Use `.env` baseado em `.env.example`.
 
 - `GET /health`
 - `GET /elements`
+- `GET /api/v1/feed`
+- `GET /api/v1/feed/hashtag/:hashtag`
+- `GET /api/v1/search?q=...`
+- `GET /api/v1/articles/by-slug/:slug`
+- `GET /api/v1/hashtags`
 
 ### Autenticados
 
@@ -34,6 +39,8 @@ Os endpoints abaixo exigem `Authorization: Bearer <token>` e dependem de `AUTH_R
 - `POST /molecules`
 - `PUT /molecules/:moleculeId`
 - `DELETE /molecules/:moleculeId`
+- `GET /api/v1/me/articles/saved`
+- `POST /api/v1/articles/:articleId/save`
 
 ### Administrativos
 
