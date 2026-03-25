@@ -42,6 +42,22 @@ export type ArticleRecord = ArticleSummary & {
   saveCount: number;
 };
 
+export type EditableArticleDraft = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  markdownSource: string;
+  visibility: ArticleVisibility;
+  coverImage: string | null;
+  hashtags: ArticleHashtag[];
+  author: ArticleAuthor;
+  status: "draft" | "published" | "archived";
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+};
+
 export type ArticleCursorPage<TItem> = {
   items: TItem[];
   nextCursor: string | null;

@@ -1,12 +1,19 @@
 import { Router, type Request, type RequestHandler } from "express";
 
+import type ManageEditableArticles from "../../application/usecases/ManageEditableArticles.js";
 import type ManagePublicArticles from "../../application/usecases/ManagePublicArticles.js";
 import type ManageSavedArticles from "../../application/usecases/ManageSavedArticles.js";
 import type ManageOwnedArticles from "../../application/usecases/ManageOwnedArticles.js";
-import type { ArticleDetail, ArticleFeedItem, ArticleSummary } from "../../domain/Article.js";
+import type {
+  ArticleDetail,
+  ArticleFeedItem,
+  ArticleSummary,
+  ArticleVisibility,
+} from "../../domain/Article.js";
 import { AppError, isAppError } from "../errors/AppError.js";
 
 type CreateArticleRoutesInput = {
+  manageEditableArticles?: ManageEditableArticles;
   managePublicArticles?: ManagePublicArticles;
   manageSavedArticles?: ManageSavedArticles;
   manageOwnedArticles?: ManageOwnedArticles;
@@ -122,6 +129,82 @@ function parseOptionalString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function parseOptionalBodyString(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new AppError({
+      statusCode: 400,
+      code: "INVALID_ARTICLE_INPUT",
+      message: "Expected a string body field.",
+      publicMessage: "Expected a string body field.",
+      layer: "http",
+    });
+  }
+
+  return value;
+}
+
+function parseOptionalCoverImage(value: unknown): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new AppError({
+      statusCode: 400,
+      code: "INVALID_ARTICLE_INPUT",
+      message: "cover_image must be a string or null.",
+      publicMessage: "cover_image must be a string or null.",
+      layer: "http",
+    });
+  }
+
+  return value;
+}
+
+function parseOptionalVisibility(value: unknown): ArticleVisibility | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === "public" || value === "private") {
+    return value;
+  }
+
+  throw new AppError({
+    statusCode: 400,
+    code: "INVALID_ARTICLE_INPUT",
+    message: "visibility must be either public or private.",
+    publicMessage: "visibility must be either public or private.",
+    layer: "http",
+  });
+}
+
+function parseOptionalHashtags(value: unknown): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
+    throw new AppError({
+      statusCode: 400,
+      code: "INVALID_ARTICLE_INPUT",
+      message: "hashtags must be an array of strings.",
+      publicMessage: "hashtags must be an array of strings.",
+      layer: "http",
+    });
+  }
+
+  return value;
+}
+
 function parseRequiredQueryString(value: unknown, field: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new AppError({
@@ -176,6 +259,7 @@ function toArticleDetailResponse(article: ArticleDetail) {
 }
 
 function createArticleRoutes({
+  manageEditableArticles,
   managePublicArticles,
   manageSavedArticles,
   manageOwnedArticles,
@@ -321,6 +405,100 @@ function createArticleRoutes({
             code: "LIST_ARTICLE_HASHTAGS_FAILED",
             message: error instanceof Error ? error.message : String(error),
             publicMessage: "Internal error while listing article hashtags.",
+            layer: "application",
+            cause: error,
+          }),
+        );
+      }
+    });
+  }
+
+  if (manageEditableArticles !== undefined) {
+    router.post("/api/v1/articles", ...authHandlers, async (request, response, next) => {
+      try {
+        const article = await manageEditableArticles.createDraft({
+          userId: getAuthenticatedUserId(request),
+          title: parseOptionalBodyString(request.body?.title),
+          markdownSource: parseOptionalBodyString(request.body?.markdown_source),
+          excerpt: parseOptionalBodyString(request.body?.excerpt),
+          visibility: parseOptionalVisibility(request.body?.visibility),
+          coverImage: parseOptionalCoverImage(request.body?.cover_image),
+          hashtags: parseOptionalHashtags(request.body?.hashtags),
+        });
+
+        response.status(201).json(toArticleDetailResponse(article));
+      } catch (error: unknown) {
+        if (isAppError(error)) {
+          next(error);
+          return;
+        }
+
+        next(
+          new AppError({
+            statusCode: 500,
+            code: "CREATE_ARTICLE_DRAFT_FAILED",
+            message: error instanceof Error ? error.message : String(error),
+            publicMessage: "Internal error while creating the article draft.",
+            layer: "application",
+            cause: error,
+          }),
+        );
+      }
+    });
+
+    router.get("/api/v1/articles/:articleId", ...authHandlers, async (request, response, next) => {
+      try {
+        const article = await manageEditableArticles.getOwnedArticleById(
+          getAuthenticatedUserId(request),
+          getArticleIdParam(request),
+        );
+
+        response.status(200).json(toArticleDetailResponse(article));
+      } catch (error: unknown) {
+        if (isAppError(error)) {
+          next(error);
+          return;
+        }
+
+        next(
+          new AppError({
+            statusCode: 500,
+            code: "GET_OWNED_ARTICLE_FAILED",
+            message: error instanceof Error ? error.message : String(error),
+            publicMessage: "Internal error while loading your article.",
+            layer: "application",
+            cause: error,
+          }),
+        );
+      }
+    });
+
+    router.put("/api/v1/articles/:articleId", ...authHandlers, async (request, response, next) => {
+      try {
+        const article = await manageEditableArticles.updateOwnedArticle({
+          userId: getAuthenticatedUserId(request),
+          articleId: getArticleIdParam(request),
+          title: parseOptionalBodyString(request.body?.title),
+          markdownSource: parseOptionalBodyString(request.body?.markdown_source),
+          excerpt: parseOptionalBodyString(request.body?.excerpt),
+          visibility: parseOptionalVisibility(request.body?.visibility),
+          coverImage: parseOptionalCoverImage(request.body?.cover_image),
+          hashtags: parseOptionalHashtags(request.body?.hashtags),
+        });
+
+        response.status(200).json(toArticleDetailResponse(article));
+      } catch (error: unknown) {
+        if (isAppError(error)) {
+          next(error);
+          return;
+        }
+
+        next(
+          new AppError({
+            statusCode: 500,
+            code: "UPDATE_OWNED_ARTICLE_FAILED",
+            message: error instanceof Error ? error.message : String(error),
+            publicMessage: "Internal error while updating your article.",
             layer: "application",
             cause: error,
           }),

@@ -1,5 +1,6 @@
 import type ArticleRepository from "../../application/protocols/ArticleRepository.js";
 import type {
+  CreateOwnedArticleDraftInput,
   ListOwnedArticlesInput,
   ListPublicArticlesByHashtagInput,
   ListPublicArticlesInput,
@@ -7,6 +8,7 @@ import type {
   ListSavedArticlesInput,
   SaveArticleForUserInput,
   SearchPublicArticlesInput,
+  UpdateOwnedArticleInput,
 } from "../../application/protocols/ArticleRepository.js";
 import type {
   ArticleCursorPage,
@@ -161,6 +163,22 @@ export default class InMemoryArticleRepository implements ArticleRepository {
     );
 
     return article === undefined ? null : cloneArticleDetail(article);
+  }
+
+  async findOwnedArticleById(userId: string, articleId: string): Promise<ArticleDetail | null> {
+    const article = this.articles.get(articleId);
+
+    if (article === undefined || article.author.id !== userId) {
+      return null;
+    }
+
+    return cloneArticleDetail(article);
+  }
+
+  async isArticleSlugAvailable(slug: string, excludeArticleId?: string | null): Promise<boolean> {
+    return ![...this.articles.values()].some(
+      (article) => article.slug === slug && article.id !== (excludeArticleId ?? null),
+    );
   }
 
   async listPublicFeed(input: ListPublicArticlesInput): Promise<ArticleCursorPage<ArticleFeedItem>> {
@@ -359,6 +377,52 @@ export default class InMemoryArticleRepository implements ArticleRepository {
           : null,
       prevCursor: null,
     };
+  }
+
+  async createOwnedArticleDraft(input: CreateOwnedArticleDraftInput): Promise<ArticleDetail> {
+    const now = new Date();
+    const article: ArticleRecord = {
+      id: input.articleId,
+      title: input.title,
+      slug: input.slug,
+      excerpt: input.excerpt,
+      markdownSource: input.markdownSource,
+      visibility: input.visibility,
+      status: "draft",
+      coverImage: input.coverImage,
+      hashtags: structuredClone(input.hashtags),
+      author: structuredClone(input.author),
+      saveCount: 0,
+      createdAt: now,
+      updatedAt: now,
+      publishedAt: null,
+    };
+
+    this.articles.set(article.id, structuredClone(article));
+    return cloneArticleDetail(article);
+  }
+
+  async updateOwnedArticle(input: UpdateOwnedArticleInput): Promise<ArticleDetail | null> {
+    const existingArticle = this.articles.get(input.articleId);
+
+    if (existingArticle === undefined || existingArticle.author.id !== input.userId) {
+      return null;
+    }
+
+    const updatedArticle: ArticleRecord = {
+      ...existingArticle,
+      title: input.title,
+      slug: input.slug,
+      excerpt: input.excerpt,
+      markdownSource: input.markdownSource,
+      visibility: input.visibility,
+      coverImage: input.coverImage,
+      hashtags: structuredClone(input.hashtags),
+      updatedAt: new Date(),
+    };
+
+    this.articles.set(updatedArticle.id, structuredClone(updatedArticle));
+    return cloneArticleDetail(updatedArticle);
   }
 
   async listSavedArticles(input: ListSavedArticlesInput): Promise<ArticleCursorPage<ArticleSummary>> {

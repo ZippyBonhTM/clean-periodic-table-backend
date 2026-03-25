@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from "express";
 
+import type ManageEditableArticles from "../../application/usecases/ManageEditableArticles.js";
 import type ManagePublicArticles from "../../application/usecases/ManagePublicArticles.js";
 import type ManageSavedArticles from "../../application/usecases/ManageSavedArticles.js";
 import type ManageOwnedArticles from "../../application/usecases/ManageOwnedArticles.js";
@@ -15,6 +16,7 @@ import { createMoleculesRoutes } from "./moleculesRoutes.js";
 
 type CreateApiRouterInput = {
   appEnv: AppEnv;
+  manageEditableArticles?: ManageEditableArticles;
   managePublicArticles?: ManagePublicArticles;
   manageSavedArticles?: ManageSavedArticles;
   manageOwnedArticles?: ManageOwnedArticles;
@@ -27,6 +29,7 @@ type CreateApiRouterInput = {
 
 function createApiRouter({
   appEnv,
+  manageEditableArticles,
   managePublicArticles,
   manageSavedArticles,
   manageOwnedArticles,
@@ -49,12 +52,14 @@ function createApiRouter({
   router.use(createElementsRoutes(elementsRoutesInput));
   router.use(createMoleculesRoutes(moleculesRoutesInput));
   if (
+    manageEditableArticles !== undefined ||
     managePublicArticles !== undefined ||
     manageSavedArticles !== undefined ||
     manageOwnedArticles !== undefined
   ) {
     router.use(
       createArticleRoutes({
+        ...(manageEditableArticles !== undefined ? { manageEditableArticles } : {}),
         ...(managePublicArticles !== undefined ? { managePublicArticles } : {}),
         ...(manageSavedArticles !== undefined ? { manageSavedArticles } : {}),
         ...(manageOwnedArticles !== undefined ? { manageOwnedArticles } : {}),
